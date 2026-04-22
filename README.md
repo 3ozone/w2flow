@@ -4,7 +4,7 @@ App to create workflows using ai
 
 ## Descripcion
 
-Aplicación que descarga las licitaciones de la administración pública para evaluar bajo unos criterios que impone la empresa que licitaciones son aceptables para la empresa.
+Aplicación para descarga las licitaciones de la administración pública. La descarga sigue unos filtros y criterios, marcados por el usuarios, para seleccionar los documentos que más se ajustan a las necesidades de la empresa.
 
 ## Herramientas
 
