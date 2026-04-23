@@ -64,3 +64,40 @@ En w2flow seguimos los principios de:
 - **KISS** (Keep It Simple, Stupid): Soluciones simples, código claro
 - **YAGNI** (You Aren't Gonna Need It): Solo implementamos lo necesario
 - **TDD** (Test Driven Development): Primero los tests, luego el código
+
+---
+
+## 🌿 Ramas, versiones y releases
+
+### Branching — GitHub Flow
+
+```
+main        → siempre estable, nunca commits directos
+feature/*   → una rama por tarea del TASKS.md
+fix/*       → correcciones puntuales
+```
+
+Nomenclatura:
+```
+feature/domain-tender-entity
+feature/application-download-command
+fix/score-traffic-light-calculation
+```
+
+### Versioning — SemVer
+
+- **PATCH** `1.0.x` — bugfix o ajuste menor
+- **MINOR** `1.x.0` — nueva funcionalidad o fase completada
+- **MAJOR** `x.0.0` — breaking change en la API
+
+### Tags por fase
+
+| Tag | Contenido |
+|---|---|
+| `v0.1.0` | Fase 1 — Dominio |
+| `v0.2.0` | Fase 2 — Aplicación |
+| `v0.3.0` | Fase 3 — Infraestructura |
+| `v0.4.0` | Fase 4 — API REST |
+| `v1.0.0` | Fase 5 — Producción |
+
+Ver [ADR-008](docs/adrs/008-branching-versioning-strategy.md) para la decisión completa.

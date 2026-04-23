@@ -1,0 +1,372 @@
+openapi: 3.1.0
+
+info:
+  title: w2flow API
+  description: API para la descarga, filtrado y puntuación de licitaciones públicas de contractaciopublica.cat
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Desarrollo local
+
+tags:
+  - name: pipeline
+    description: Ejecución y estado del proceso batch
+  - name: filters
+    description: Configuración de filtros de selección
+  - name: tenders
+    description: Licitaciones evaluadas
+  - name: reports
+    description: Informes comparativos
+
+paths:
+
+  # ── Pipeline ────────────────────────────────────────────────────
+
+  /pipeline/run:
+    post:
+      tags: [pipeline]
+      summary: Lanza el pipeline completo
+      description: Descarga licitaciones del día, aplica filtros, extrae requisitos, puntúa y genera informe.
+      responses:
+        "202":
+          description: Pipeline iniciado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStarted"
+        "409":
+          description: Ya hay un pipeline en ejecución
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "422":
+          description: Filtros no configurados (R-05)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /pipeline/status:
+    get:
+      tags: [pipeline]
+      summary: Estado del pipeline en curso
+      description: Devuelve el estado actual del proceso (RNF-01).
+      responses:
+        "200":
+          description: Estado del pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStatus"
+
+  # ── Filters ─────────────────────────────────────────────────────
+
+  /filters:
+    get:
+      tags: [filters]
+      summary: Obtiene la configuración de filtros activa
+      responses:
+        "200":
+          description: Filtros actuales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilterConfig"
+
+    put:
+      tags: [filters]
+      summary: Actualiza los filtros de selección
+      description: Debe configurarse antes de lanzar el pipeline (R-05).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FilterConfig"
+      responses:
+        "200":
+          description: Filtros actualizados
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilterConfig"
+        "422":
+          description: Datos de filtro inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Tenders ─────────────────────────────────────────────────────
+
+  /tenders:
+    get:
+      tags: [tenders]
+      summary: Lista de licitaciones evaluadas
+      description: Devuelve las licitaciones del último informe con su semáforo.
+      parameters:
+        - name: traffic_light
+          in: query
+          schema:
+            $ref: "#/components/schemas/TrafficLight"
+          description: Filtra por semáforo
+        - name: report_id
+          in: query
+          schema:
+            type: string
+          description: Filtra por informe
+      responses:
+        "200":
+          description: Lista de licitaciones evaluadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoredTender"
+
+  /tenders/{id}:
+    get:
+      tags: [tenders]
+      summary: Detalle de una licitación evaluada
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: expedientCode de la licitación
+      responses:
+        "200":
+          description: Detalle de la licitación evaluada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoredTender"
+        "404":
+          description: Licitación no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Reports ─────────────────────────────────────────────────────
+
+  /reports:
+    get:
+      tags: [reports]
+      summary: Lista de informes comparativos generados
+      responses:
+        "200":
+          description: Lista de informes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportSummary"
+
+  /reports/{id}:
+    get:
+      tags: [reports]
+      summary: Detalle de un informe comparativo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Informe completo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComparativeReport"
+        "404":
+          description: Informe no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+# ── Schemas ───────────────────────────────────────────────────────
+
+components:
+  schemas:
+
+    TrafficLight:
+      type: string
+      enum: [GREEN, YELLOW, RED]
+      description: "GREEN ≥70 · YELLOW 40-69 · RED <40"
+
+    DocumentType:
+      type: string
+      enum: [PCAP, PPT, TECHNICAL_MEMORY, BUDGET, ANNEXES]
+
+    FilterConfig:
+      type: object
+      required:
+        - work_type
+        - price_range
+        - geographic_area
+        - cpv_codes
+        - execution_deadline
+        - business_classification
+      properties:
+        work_type:
+          type: string
+          description: Tipología de obra
+        price_range:
+          type: object
+          required: [min, max]
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+        geographic_area:
+          type: string
+          description: Área geográfica
+        cpv_codes:
+          type: array
+          items:
+            type: string
+          description: Códigos CPV permitidos
+        execution_deadline:
+          type: integer
+          description: Plazo máximo de ejecución en días
+        business_classification:
+          type: string
+          description: Clasificación empresarial requerida
+
+    Tender:
+      type: object
+      properties:
+        expedient_code:
+          type: string
+        contracting_body:
+          type: string
+        amount:
+          type: number
+        cpv_code:
+          type: string
+        execution_deadline:
+          type: integer
+        presentation_deadline:
+          type: string
+          format: date-time
+        publication_date:
+          type: string
+          format: date
+
+    Score:
+      type: object
+      properties:
+        tender_id:
+          type: string
+        economic_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        technical_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        total_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        traffic_light:
+          $ref: "#/components/schemas/TrafficLight"
+
+    Document:
+      type: object
+      properties:
+        tender_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/DocumentType"
+        file_path:
+          type: string
+        download_date:
+          type: string
+          format: date-time
+
+    ScoredTender:
+      type: object
+      properties:
+        tender:
+          $ref: "#/components/schemas/Tender"
+        score:
+          $ref: "#/components/schemas/Score"
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        evaluation_report:
+          type: string
+
+    ReportSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        generation_date:
+          type: string
+          format: date-time
+        total_processed:
+          type: integer
+        total_viable:
+          type: integer
+        summary:
+          type: string
+
+    ComparativeReport:
+      allOf:
+        - $ref: "#/components/schemas/ReportSummary"
+        - type: object
+          properties:
+            scored_tenders:
+              type: array
+              items:
+                $ref: "#/components/schemas/ScoredTender"
+
+    PipelineStarted:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Pipeline iniciado
+        started_at:
+          type: string
+          format: date-time
+
+    PipelineStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [idle, running, completed, failed]
+        current_stage:
+          type: string
+          enum: [download, filter, extract, score, report, notify]
+          nullable: true
+        downloaded:
+          type: integer
+        processed:
+          type: integer
+        errors:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
