@@ -5,6 +5,7 @@ config:
 ---
 classDiagram
     class Tender {
+        <<entity · aggregate root>>
         +expedientCode: String
         +contractingBody: String
         +amount: float
@@ -18,6 +19,7 @@ classDiagram
     }
 
     class FilterConfig {
+        <<value object>>
         +workType: String
         +priceRange: Range
         +geographicArea: String
@@ -29,6 +31,7 @@ classDiagram
     }
 
     class Document {
+        <<entity>>
         +tenderId: String
         +type: DocumentType
         +filePath: String
@@ -47,6 +50,7 @@ classDiagram
     }
 
     class Requirements {
+        <<value object>>
         +tenderId: String
         +solvencyRequirements: List
         +technicalRequirements: List
@@ -58,6 +62,7 @@ classDiagram
     }
 
     class Score {
+        <<value object>>
         +tenderId: String
         +economicScore: float
         +technicalScore: float
@@ -76,6 +81,7 @@ classDiagram
     }
 
     class ScoredTender {
+        <<entity>>
         +tender: Tender
         +score: Score
         +documents: List~Document~
@@ -86,6 +92,7 @@ classDiagram
     }
 
     class ComparativeReport {
+        <<entity>>
         +scoredTenders: List~ScoredTender~
         +generationDate: DateTime
         +summary: String

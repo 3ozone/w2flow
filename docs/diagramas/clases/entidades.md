@@ -1,7 +1,10 @@
 # Entidades del dominio
 
-## Tender (Licitación)
+## Tender — `Entity` · `Aggregate Root`
 Representa una licitación pública publicada en contractaciopublica.cat.
+
+> **Identidad:** `expedientCode` — dos licitaciones son distintas aunque tengan los mismos datos si su código difiere.  
+> **Python:** clase normal con `__eq__` basado en `expedientCode`.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
@@ -23,8 +26,11 @@ Representa una licitación pública publicada en contractaciopublica.cat.
 
 ---
 
-## FilterConfig (Filtro)
+## FilterConfig — `Value Object`
 Criterios que debe cumplir una licitación para ser candidata (RF-03, RN-01).
+
+> **Sin identidad:** dos `FilterConfig` con los mismos valores son equivalentes.  
+> **Python:** `@dataclass(frozen=True)` con `__eq__` por valor.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
@@ -44,8 +50,11 @@ Criterios que debe cumplir una licitación para ser candidata (RF-03, RN-01).
 
 ---
 
-## Document (Documento)
+## Document — `Entity`
 Fichero adjunto descargado de una licitación candidata (RF-04, RN-02).
+
+> **Identidad:** combinación `tenderId` + `type` — no puede haber dos PCAP del mismo expediente.  
+> **Python:** clase normal con `__eq__` basado en `(tenderId, type)`.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
@@ -63,8 +72,11 @@ Fichero adjunto descargado de una licitación candidata (RF-04, RN-02).
 
 ---
 
-## Score (Puntuación)
+## Score — `Value Object`
 Resultado de la evaluación de viabilidad de una licitación (RF-06, RN-03).
+
+> **Sin identidad:** inmutable una vez calculado. Si cambian los criterios se crea un `Score` nuevo.  
+> **Python:** `@dataclass(frozen=True)` con `__eq__` por valor.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
@@ -84,8 +96,11 @@ Resultado de la evaluación de viabilidad de una licitación (RF-06, RN-03).
 
 ---
 
-## Requirements (Requisitos extraídos)
+## Requirements — `Value Object`
 Información extraída mediante NLP de los documentos de una licitación (RF-05).
+
+> **Sin identidad:** inmutable una vez extraído. Se reemplaza completo si se reprocesa.  
+> **Python:** `@dataclass(frozen=True)` con `__eq__` por valor.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
@@ -105,8 +120,11 @@ Información extraída mediante NLP de los documentos de una licitación (RF-05)
 
 ---
 
-## ScoredTender (Licitación evaluada)
+## ScoredTender — `Entity`
 Agrega todos los datos de una licitación tras pasar por el pipeline completo (RF-06, RF-07).
+
+> **Identidad:** la de su `Tender` interno (`expedientCode`). Es la entidad que "viaja" por el pipeline.  
+> **Python:** clase normal con `__eq__` delegado a `tender.expedientCode`.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
@@ -125,8 +143,11 @@ Agrega todos los datos de una licitación tras pasar por el pipeline completo (R
 
 ---
 
-## ComparativeReport (Informe comparativo)
+## ComparativeReport — `Entity`
 Informe final con todas las licitaciones evaluadas para la decisión GO/NO GO (RF-07).
+
+> **Identidad:** `generationDate` — cada ejecución del proceso genera un informe único.  
+> **Python:** clase normal con `__eq__` basado en `generationDate`.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
