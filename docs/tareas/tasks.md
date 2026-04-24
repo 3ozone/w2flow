@@ -11,11 +11,17 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 ## Fase 0 — Setup del proyecto
 > Sin TDD — son tareas de configuración
 
-- [ ] Inicializar estructura de carpetas (`domain/`, `application/`, `infrastructure/`, `tests/`)
-- [ ] Configurar `pyproject.toml` con dependencias (FastAPI, SQLAlchemy, Pydantic, Alembic, pytest)
-- [ ] Configurar variables de entorno (`.env` + `Settings` con Pydantic)
-- [ ] Configurar PostgreSQL con Docker Compose
-- [ ] Configurar pytest con estructura espejo de `app/`
+- [x] Inicializar estructura de carpetas (`domain/`, `application/`, `infrastructure/`, `tests/`)
+- [x] Configurar `pyproject.toml` con dependencias (FastAPI, SQLAlchemy, Pydantic, Alembic, pytest)
+- [x] Configurar variables de entorno (`.env` + `Settings` con Pydantic)
+- [x] Configurar PostgreSQL con Docker Compose (desarrollo local)
+- [x] Configurar pytest con estructura espejo de `app/`
+- [ ] Crear `Dockerfile` + `.dockerignore` para la app
+- [ ] Crear manifiestos Kubernetes básicos (`deployment.yaml`, `service.yaml`, `configmap.yaml`, `secret.yaml`)
+
+> **Nota despliegue**: La app se contenerizará con Docker y desplegará en Kubernetes.
+> Las variables de entorno en producción se inyectan vía `ConfigMap` y `Secret` de K8s — no se usa `.env` en el contenedor.
+> `pydantic-settings` lee las vars del entorno del sistema con prioridad sobre el `.env`, por lo que `app/config.py` es compatible con ambos entornos sin cambios.
 
 ---
 
