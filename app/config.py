@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     # Base de datos
     database_url: str
 
-    # API contractaciopublica.cat
-    licitation_api_base_url: str
+    # API Portal PSCP (contractaciopublica.cat)
+    pscp_portal_base_url: str = "https://contractaciopublica.cat/portal-api"
     licitation_api_timeout: int = 30
     licitation_api_max_retries: int = 2
 

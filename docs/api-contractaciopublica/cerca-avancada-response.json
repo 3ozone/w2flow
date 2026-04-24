@@ -1,0 +1,51 @@
+{
+    "content": [
+        {
+            "id": 300688406,
+            "titol": "Servei d'organització i realització de les estades i cursos en llengua anglesa de l'estiu de 2026",
+            "fasesVigents": {
+                "ALERTA_FUTURA": {
+                    "lotsActius": 0,
+                    "dataPublicacio": "2026-02-06T17:00:05.000Z",
+                    "idPublicacio": 300688406
+                }
+            },
+            "esPlacsp": false,
+            "esAgregatContractes": null,
+            "esAgregatEncarrecs": null,
+            "nomPublicacioAgregada": "Servei d'organització i realització de les estades i cursos en llengua anglesa de l'estiu de 2026",
+            "descripcio": "Organització i realització de les estades i cursos de llengua anglesa a Catalunya, Gran Bretanya, Irlanda, Estats Units o el Canadà...",
+            "pressupostLicitacio": null,
+            "pressupostAdjudicacio": null,
+            "organ": "Fundació Catalana per a l'Ensenyament de l'Idioma Anglès i l'Educació en Anglès",
+            "idOrgan": 100167955,
+            "codiExpedient": null,
+            "expedientId": "6c0b85ba-b2ab-4bbd-b972-fe2daba67d12"
+        }
+    ],
+    "pageable": {
+        "pageNumber": 0,
+        "pageSize": 20,
+        "sort": {
+            "unsorted": true,
+            "sorted": false,
+            "empty": true
+        },
+        "offset": 0,
+        "paged": true,
+        "unpaged": false
+    },
+    "totalPages": 2,
+    "totalElements": 34,
+    "last": false,
+    "numberOfElements": 20,
+    "size": 20,
+    "number": 0,
+    "sort": {
+        "unsorted": true,
+        "sorted": false,
+        "empty": true
+    },
+    "first": true,
+    "empty": false
+}
