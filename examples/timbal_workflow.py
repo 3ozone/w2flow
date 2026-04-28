@@ -14,18 +14,20 @@ import logging
 from pathlib import Path
 
 import httpx
+import pymupdf
 from timbal import Agent, Workflow
 from timbal.state import get_run_context
 from timbal.types.file import File
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://contractaciopublica.cat/portal-api"
 DOWNLOAD_DIR = Path("downloads")
-MAX_LICITACIONS = 3
+MAX_LICITACIONS = 10
 
-SYSTEM_PROMPT = """Eres un experto en licitaciones públicas catalanas.
+SYSTEM_PROMPT = """Eres un experto en licitaciones públicas catalanas trabajando para una empresa de ingeniería y construcción.
 Para cada licitación recibida, con sus documentos adjuntos, formatea así:
 
 ---
@@ -35,6 +37,13 @@ Para cada licitación recibida, con sus documentos adjuntos, formatea así:
 📅 Publicación: [fecha]
 🔖 Fase: [fase actual]
 🔗 Expediente: [código expediente]
+🎯 **Puntuación: [score.total]/70 — [score.recomanacio]**
+   - Presupuesto: [score.detall.pressupost] pts
+   - Sector relevante: [score.detall.sector_positiu] pts
+   - Penalizaciones IT/software: [score.detall.sector_negatiu] pts
+   - Procedimiento abierto: [score.detall.procediment_obert] pts
+   - Subcontratación permitida: [score.detall.subcontractació] pts
+   - Palabras clave encontradas: [score.paraules_clau_trobades]
 
 📁 Documentos:
   - [nombre] ([tamaño KB])
@@ -42,7 +51,7 @@ Para cada licitación recibida, con sus documentos adjuntos, formatea así:
 
 ---
 
-Al final, un resumen con el total de licitaciones y documentos analizados."""
+Al final, ordena las licitaciones por puntuación (mayor a menor) y añade un resumen ejecutivo de cuáles son más interesantes para una empresa de ingeniería/construcción."""
 
 
 # =============================================================================
@@ -94,14 +103,20 @@ async def _fetch_and_download_one(client: httpx.AsyncClient, lic: dict) -> dict:
         f"{BASE_URL}/detall-publicacio-expedient/{exp_id}/{pub_id}"
     )
     if detail_r.status_code != 200:
-        log.warning(f"  SKIP {lic['titol'][:50]} — status {detail_r.status_code}")
+        log.warning(
+            f"  SKIP {lic['titol'][:50]} — status {detail_r.status_code}")
         return {}
     detail = detail_r.json()
 
     dades = detail.get("dades", {})
-    dades_pub = dades.get("publicacio", {}).get("dadesPublicacio", {})
-    docs = extract_documents(dades_pub)
+    # Cerca recursiva sobre tot dades: troba documents tant a dadesPublicacio
+    # com a documentFormalitzacio (i qualsevol altra clau futura).
+    docs = extract_documents(dades)
     log.info(f"  [{pub_id}] Documentos encontrados: {len(docs)}")
+
+    # Sub-carpeta exclusiva per a aquesta licitació
+    lic_dir = DOWNLOAD_DIR / str(exp_id)
+    lic_dir.mkdir(parents=True, exist_ok=True)
 
     # Descarrega cada document
     downloaded = []
@@ -112,7 +127,7 @@ async def _fetch_and_download_one(client: httpx.AsyncClient, lic: dict) -> dict:
         )
         if doc_r.status_code == 200:
             safe_name = doc["titol"].replace("/", "_")
-            filepath = DOWNLOAD_DIR / safe_name
+            filepath = lic_dir / safe_name
             filepath.write_bytes(doc_r.content)
             downloaded.append({
                 "titol": doc["titol"],
@@ -156,36 +171,145 @@ async def enrich_licitacions(licitacions: list[dict]) -> dict:
         )
 
     enriched = [r for r in results if r]
-    all_file_paths = []
-    for r in enriched:
-        all_file_paths.extend(r.pop("file_paths", []))
+    total_pdfs = sum(len(r.get("file_paths", [])) for r in enriched)
+    log.info(
+        f"[2] Licitacions enriquides: {len(enriched)} | PDFs: {total_pdfs}")
+    return {"enriched": enriched}
 
-    log.info(f"[2] Licitacions enriquides: {len(enriched)} | PDFs: {len(all_file_paths)}")
-    return {"enriched": enriched, "file_paths": all_file_paths}
+
+# =============================================================================
+# SCORING — puntuació per a empresa d'enginyeria/construcció (màx 70 pts)
+# =============================================================================
+
+SCORE_CONFIG = {
+    "sector_positiu": [
+        "obres", "construcció", "infraestructura", "reforma", "rehabilitació",
+        "urbanisme", "enginyeria", "instal·lació", "instal.lació", "maquinari",
+        "manteniment", "obra civil", "edificació", "pavimentació", "canalització",
+        "xarxa", "electricitat", "fontaneria", "climatització", "ascensor",
+        "estructura", "fonamentació", "maquinaria escènica", "maquinaria",
+    ],
+    "sector_negatiu": [
+        "software", "saas", "plataforma digital", "aplicació web",
+        "recursos humans", "nòmina", "gestió de persones", "assegurança",
+        "servei jurídic", "auditoria financera", "consultoria de gestió",
+    ],
+}
+
+
+def _score_one(lic: dict) -> dict:
+    """Puntua una licitació a partir del text dels seus PDFs."""
+    # Texto base: título + texto de todos los PDFs de la licitación
+    text = lic.get("titol", "").lower() + " "
+    for pdf_path in lic.get("file_paths", []):
+        p = Path(pdf_path)
+        if p.exists() and p.suffix.lower() == ".pdf":
+            try:
+                doc = pymupdf.open(str(p))
+                for page in doc:
+                    text += page.get_text().lower()
+            except Exception:
+                pass
+
+    # Criteri 1: pressupost (0-25 pts)
+    pressupost = lic.get("pressupost") or 0
+    if pressupost >= 1_000_000:
+        pts_pressupost = 25
+    elif pressupost >= 500_000:
+        pts_pressupost = 20
+    elif pressupost >= 100_000:
+        pts_pressupost = 10
+    else:
+        pts_pressupost = 5
+
+    # Criteri 2: sector positiu (0-30 pts, +5 per paraula clau, màx 30)
+    hits_pos = [kw for kw in SCORE_CONFIG["sector_positiu"] if kw in text]
+    pts_sector_pos = min(len(hits_pos) * 5, 30)
+
+    # Criteri 3: sector negatiu (penalització -10 per paraula clau)
+    hits_neg = [kw for kw in SCORE_CONFIG["sector_negatiu"] if kw in text]
+    pts_sector_neg = len(hits_neg) * -10
+
+    # Criteri 4: procediment obert (+10 pts)
+    pts_procediment = 10 if "procediment obert" in text else 0
+
+    # Criteri 5: subcontractació permesa (+5 pts)
+    pts_subcontract = 5 if "subcontract" in text else 0
+
+    total = max(0, pts_pressupost + pts_sector_pos +
+                pts_sector_neg + pts_procediment + pts_subcontract)
+    recomanacio = "✅ RECOMANADA" if total >= 50 else (
+        "⚠️ A VALORAR" if total >= 25 else "❌ NO RECOMANADA")
+
+    log.info(
+        f"  [{lic.get('expedient', '?')}] Puntuació: {total}/70 — {recomanacio}"
+        f" (pressupost+{pts_pressupost} sector+{pts_sector_pos} neg{pts_sector_neg})"
+    )
+    return {
+        "total": total,
+        "recomanacio": recomanacio,
+        "detall": {
+            "pressupost": pts_pressupost,
+            "sector_positiu": pts_sector_pos,
+            "sector_negatiu": pts_sector_neg,
+            "procediment_obert": pts_procediment,
+            "subcontractació": pts_subcontract,
+        },
+        "paraules_clau_trobades": hits_pos,
+        "penalitzacions": hits_neg,
+    }
+
+
+def score_licitacions(data: dict) -> dict:
+    """
+    Paso 3 — Puntua cada licitació llegint el text dels seus PDFs.
+
+    Criteris (màx 70 pts):
+      - Pressupost         0-25 pts  (>1M=25, >500K=20, >100K=10, resta=5)
+      - Sector positiu     0-30 pts  (+5 per paraula clau eng/construcció, màx 30)
+      - Sector negatiu     0   pts   (-10 per paraula clau IT/software)
+      - Procediment obert    10 pts
+      - Subcontractació       5 pts
+    """
+    enriched = data["enriched"]
+    log.info(f"[3] Puntuant {len(enriched)} licitacions...")
+
+    all_file_paths = []
+    for lic in enriched:
+        lic["score"] = _score_one(lic)
+        all_file_paths.extend(lic.get("file_paths", []))
+
+    return {"enriched": enriched, "all_file_paths": all_file_paths}
 
 
 def build_prompt(data: dict) -> list:
     """
-    Paso 3 — Construeix el prompt amb els PDFs reals com a File objects.
+    Paso 4 — Construeix el prompt amb puntuació i PDFs reals com a File objects.
 
-    Gràcies a File.validate(), Gemini pot LLEGIR els documents,
-    no només veure el nom del fitxer.
+    Gràcies a File.validate(), Gemini pot LLEGIR els documents directament.
     """
     enriched = data["enriched"]
-    file_paths = data["file_paths"]
+    all_file_paths = data["all_file_paths"]
+
+    # Serialitzem sense file_paths (innecessari al JSON del prompt)
+    lic_summary = [
+        {k: v for k, v in lic.items() if k != "file_paths"}
+        for lic in enriched
+    ]
 
     # Adjuntem els PDFs reals — Gemini els llegirà
     pdf_files = [
         File.validate(p)
-        for p in file_paths
-        if Path(p).exists()
+        for p in all_file_paths
+        if Path(p).exists() and p.endswith(".pdf")
     ]
-    log.info(f"[3] PDFs adjunts al prompt: {len(pdf_files)}")
+    log.info(f"[4] PDFs adjunts al prompt: {len(pdf_files)}")
 
     return [
-        f"Analiza estas {len(enriched)} licitaciones. "
-        f"Tienes adjuntos {len(pdf_files)} documentos PDF reales para leer:\n\n"
-        + json.dumps(enriched, ensure_ascii=False, indent=2),
+        f"Analiza estas {len(enriched)} licitaciones para nuestra empresa de ingeniería/construcción. "
+        f"Tienes adjuntos {len(pdf_files)} documentos PDF reales para leer. "
+        "Usa la puntuación precalculada (campo 'score') y los documentos para justificar la recomendación:\n\n"
+        + json.dumps(lic_summary, ensure_ascii=False, indent=2),
         *pdf_files,
     ]
 
@@ -194,17 +318,21 @@ def build_prompt(data: dict) -> list:
 # AGENT + WORKFLOW
 # =============================================================================
 
-agent = Agent(
+_agent = Agent(
     name="LicitacionsAgent",
     model="google/gemini-2.5-flash",
     system_prompt=SYSTEM_PROMPT,
 )
 
+
 # Pipeline explícit:
-#   fetch_licitacions  ──►  enrich_licitacions  ──►  build_prompt  ──►  agent
+#   fetch_licitacions
+#       ──► enrich_licitacions      (parallel: 3 licitacions alhora)
+#               ──► score_licitacions   (llegeix PDFs, calcula puntuació)
+#                       ──► build_prompt   (retorna la llista per a l'agent)
 #
-# fetch i enrich s'executen seqüencialment (enrich depèn de fetch).
-# Dins d'enrich, les 3 licitaciones es processen en paral·lel (asyncio.gather).
+# L'agent es crida directament a main() fora del context del workflow
+# per evitar problemes de context nesting de timbal.
 
 workflow = (
     Workflow(name="licitacions_pipeline")
@@ -214,20 +342,37 @@ workflow = (
         licitacions=lambda: get_run_context().step_span("fetch_licitacions").output,
     )
     .step(
-        build_prompt,
+        score_licitacions,
         data=lambda: get_run_context().step_span("enrich_licitacions").output,
     )
     .step(
-        agent,
-        prompt=lambda: get_run_context().step_span("build_prompt").output,
+        build_prompt,
+        data=lambda: get_run_context().step_span("score_licitacions").output,
     )
 )
 
 
 async def main():
+    """Executa el workflow i després crida l'agent amb el prompt construït."""
     log.info("=== INICIO PIPELINE ===")
-    result = await workflow().collect()
-    print(result.output.collect_text())
+
+    # Pas 1-4: descarrega, enriquiment, scoring i construcció del prompt
+    pipeline_result = await workflow().collect()
+    prompt_parts = pipeline_result.output
+
+    if prompt_parts is None:
+        log.error("El pipeline no ha retornat cap resultat.")
+        return
+
+    # Pas 5: l'agent analitza les licitacions + PDFs
+    log.info("[5] Cridant l'agent Gemini...")
+    agent_result = await _agent(prompt=prompt_parts).collect()
+
+    if agent_result.output is None:
+        log.error("L'agent no ha retornat resposta. Comprova la GEMINI_API_KEY.")
+        return
+
+    print(agent_result.output.collect_text())
 
 
 if __name__ == "__main__":
