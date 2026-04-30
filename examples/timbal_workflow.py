@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 BASE_URL = "https://contractaciopublica.cat/portal-api"
 DOWNLOAD_DIR = Path("downloads")
-MAX_LICITACIONS = 10
+MAX_LICITACIONS = 1
 
 SYSTEM_PROMPT = """Eres un experto en licitaciones públicas catalanas trabajando para una empresa de ingeniería y construcción.
 Para cada licitación recibida, con sus documentos adjuntos, formatea así:
