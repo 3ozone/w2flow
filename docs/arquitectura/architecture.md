@@ -89,9 +89,13 @@ Núcleo de la app. Sin dependencias externas.
 
 - **Entities:** `Tender`, `Document`, `ScoredTender`, `ComparativeReport`
 - **Value Objects:** `FilterConfig`, `Score`, `Requirements`
-- **Enums:** `DocumentType`, `TrafficLight`
+- **Enums:** `DocumentType` (con `from_title()`), `TrafficLight` (GREEN≥50 / YELLOW≥25 / RED<25)
 - **Events:** `TenderDownloadedEvent`, `EvaluationCompletedEvent`, `ProcessFailedEvent`
 - **Exceptions:** `DownloadError`, `FilterValidationError`, `DuplicateTenderError`, `ExpiredTenderError`
+
+> **Nota:** Los campos de `Tender` y `Document` siguen los nombres de la API real de contractaciopublica.cat
+> (`expedientId`, `titol`, `organ`, `pressupost`, `docId`, `hash`, `midaKb`).
+> `Score` trabaja sobre 70 pts máximo (no 100). Ver `docs/diagramas/clases/entidades.md`.
 
 ### Aplicación `app/application/`
 Orquesta el dominio. Solo conoce interfaces, nunca implementaciones.
@@ -105,9 +109,9 @@ Orquesta el dominio. Solo conoce interfaces, nunca implementaciones.
 Implementaciones concretas. Depende de la aplicación, nunca al revés.
 
 - **API REST:** routers FastAPI `app/infrastructure/api/v1/`
-- **HTTP Client:** `ContractacioPublicaClient` (HTTP + reintentos + paginación)
+- **HTTP Client:** `ContractacioPublicaClient` (HTTP + reintentos + paginación) — véase `examples/tender_downloader.py` como referencia
 - **Repositories:** `TenderRepository`, `DocumentRepository` (PostgreSQL)
-- **Services:** `NlpService` (extracción), `EmailService` (notificaciones)
+- **Services:** `NlpService` (Timbal Agent — extracción + scoring), `EmailService` (notificaciones)
 - **Monitoring:** `DownloadMonitor`, `RetryManager`
 
 ---
@@ -115,8 +119,13 @@ Implementaciones concretas. Depende de la aplicación, nunca al revés.
 ## Flujo del pipeline
 
 ```
-FilterConfig → DownloadTenders → FilterTenders → DownloadDocuments
-            → ExtractRequirements → ScoreTender → ComparativeReport → Notify
+FilterConfig.toApiParams() → /cerca-avancada (API)
+  → parallel /detall-publicacio-expedient/{expedientId}/{publicacioId}
+    → DFS extract documents
+    → parallel /descarrega-document/{docId}/{hash}
+  → PDFScorer (0–70 pts) → TrafficLight
+  → TimbalAgent (Requirements + evaluationReport)
+  → ComparativeReport → Notify
 ```
 
 ---

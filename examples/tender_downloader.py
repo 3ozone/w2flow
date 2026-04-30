@@ -101,7 +101,7 @@ class TenderConfig:
 
     base_url: str = "https://contractaciopublica.cat/portal-api"
     download_dir: Path = field(default_factory=lambda: Path("downloads"))
-    max_licitacions: int = 10
+    max_licitacions: int = 3
     http_timeout: int = 30
     search_params: dict = field(default_factory=lambda: {
         "page": 0,
@@ -132,7 +132,7 @@ class ITenderApiClient(ABC):
         exp_id: str,
         pub_id: int,
     ) -> dict | None:
-        """Retorna el detall complet d'una licitació, o None si falla.""""
+        """Retorna el detall complet d'una licitació, o None si falla."""
 
 
 # ---------------------------------------------------------------------------

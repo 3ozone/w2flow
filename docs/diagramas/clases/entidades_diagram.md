@@ -6,36 +6,38 @@ config:
 classDiagram
     class Tender {
         <<entity · aggregate root>>
-        +expedientCode: String
-        +contractingBody: String
-        +amount: float
-        +cpvCode: String
-        +executionDeadline: int
-        +presentationDeadline: DateTime
-        +publicationDate: DateTime
-        +isExpired() bool
+        +expedientId: String
+        +publicacioId: int
+        +titol: String
+        +organ: String
+        +pressupost: float
+        +codiExpedient: String
+        +fase: String
+        +dataPublicacio: String
         +isNew() bool
         +getBasicInfo() dict
     }
 
     class FilterConfig {
         <<value object>>
-        +workType: String
-        +priceRange: Range
-        +geographicArea: String
-        +cpvCodes: List
-        +executionDeadline: int
-        +businessClassification: String
-        +validate() bool
+        +tipusExpedient: int
+        +faseVigent: int
+        +maxResults: int
+        +sectorKeywords: List~str~
+        +minPressupost: float
+        +toApiParams() dict
         +matches(tender) bool
     }
 
     class Document {
         <<entity>>
-        +tenderId: String
-        +type: DocumentType
+        +expedientId: String
+        +docId: int
+        +titol: String
+        +hash: String
+        +midaKb: float
         +filePath: String
-        +downloadDate: DateTime
+        +type: DocumentType
         +isValidType() bool
         +isDuplicate(storage) bool
     }
@@ -47,27 +49,30 @@ classDiagram
         TECHNICAL_MEMORY
         BUDGET
         ANNEXES
+        UNKNOWN
+        from_title(titol) DocumentType
     }
 
     class Requirements {
         <<value object>>
-        +tenderId: String
-        +solvencyRequirements: List
-        +technicalRequirements: List
-        +adminRequirements: List
-        +adjudicationCriteria: List
-        +specialClauses: List
+        +expedientId: String
+        +solvencyRequirements: List~str~
+        +technicalRequirements: List~str~
+        +adjudicationCriteria: List~str~
+        +specialClauses: List~str~
+        +rawAgentOutput: String
         +isEmpty() bool
         +toDict() dict
     }
 
     class Score {
         <<value object>>
-        +tenderId: String
-        +economicScore: float
-        +technicalScore: float
-        +totalScore: float
-        +trafficLight: TrafficLight
+        +expedientId: String
+        +total: int
+        +detall: dict
+        +paraulesClauTrobades: List~str~
+        +penalitzacions: List~str~
+        +recomanacio: String
         +isViable() bool
         +assignTrafficLight() TrafficLight
         +toReport() dict
@@ -98,27 +103,18 @@ classDiagram
         +summary: String
         +totalProcessed: int
         +totalViable: int
-        +getViableTenders() List
-        +generateHTML() String
+        +getViableTenders() List~ScoredTender~
         +generateJSON() dict
         +summarizeFindings() String
     }
 
-    %% Relaciones
-    FilterConfig ..> Tender : matches()
-
-    Document --> DocumentType : type
-    Document "many" --o "1" Tender : pertenece a
-
-    Requirements "1" --o "1" Tender : extraído de
-
-    Score --> TrafficLight : trafficLight
-    Score "1" --o "1" Tender : puntúa
-
-    ScoredTender *-- Tender : tender
-    ScoredTender *-- Score : score
-    ScoredTender *-- Requirements : requirements
-    ScoredTender "1" o-- "many" Document : documents
-
-    ComparativeReport "1" o-- "many" ScoredTender : scoredTenders
+    Tender "1" --> "0..*" Document : contains
+    Tender "1" --> "1" FilterConfig : evaluated by
+    Document --> DocumentType : classified as
+    Score --> TrafficLight : uses
+    ScoredTender "1" *-- "1" Tender : wraps
+    ScoredTender "1" *-- "1" Score : has
+    ScoredTender "1" *-- "0..*" Document : has
+    ScoredTender "1" *-- "1" Requirements : has
+    ComparativeReport "1" *-- "1..*" ScoredTender : contains
 ```

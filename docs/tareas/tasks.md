@@ -30,32 +30,32 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 ### 1.1 Enums
 > Sin excepciones ni tests complejos — son tipos fijos
 
-- [ ] `TEST` `DocumentType` — valores válidos PCAP, PPT, TECHNICAL_MEMORY, BUDGET, ANNEXES
-- [ ] `IMPL` `DocumentType` (Enum)
-- [ ] `TEST` `TrafficLight` — valores GREEN, YELLOW, RED y umbrales (≥70, 40-69, <40)
-- [ ] `IMPL` `TrafficLight` (Enum)
+- [x] `TEST` `DocumentType` — valores PCAP, PPT, TECHNICAL_MEMORY, BUDGET, ANNEXES, UNKNOWN + `from_title()` con titols reales de la API
+- [x] `IMPL` `DocumentType` (Enum con `from_title(titol: str)`)
+- [x] `TEST` `TrafficLight` — valores GREEN, YELLOW, RED y umbrales (≥50=GREEN, ≥25=YELLOW, <25=RED)
+- [x] `IMPL` `TrafficLight` (Enum)
 
 ### 1.2 Value Objects
 
-- [ ] `TEST` `FilterConfig` — validación de campos obligatorios, `matches()` con tender válido e inválido
-- [ ] `EXCEPCIÓN` `FilterValidationError`
-- [ ] `IMPL` `FilterConfig` (frozen dataclass)
+- [x] `TEST` `FilterConfig` — `toApiParams()` genera los params correctos para la API, `matches()` con tender válido e inválido por importe
+- [x] `EXCEPCIÓN` `FilterValidationError`
+- [x] `IMPL` `FilterConfig` (frozen dataclass con `tipusExpedient`, `faseVigent`, `maxResults`, `sectorKeywords`, `minPressupost`)
 
-- [ ] `TEST` `Score` — cálculo de `assignTrafficLight()`, `isViable()`, inmutabilidad
-- [ ] `IMPL` `Score` (frozen dataclass)
+- [x] `TEST` `Score` — `assignTrafficLight()` con total 55/30/10, `isViable()` retorna False si total<25, `toReport()` estructura correcta
+- [x] `IMPL` `Score` (frozen dataclass con `expedientId`, `total`, `detall`, `paraulesClauTrobades`, `penalitzacions`, `recomanacio`)
 
-- [ ] `TEST` `Requirements` — `isEmpty()` con y sin datos, `toDict()` estructura correcta
-- [ ] `IMPL` `Requirements` (frozen dataclass)
+- [x] `TEST` `Requirements` — `isEmpty()` con y sin datos, `toDict()` estructura correcta
+- [x] `IMPL` `Requirements` (frozen dataclass con `expedientId`, `solvencyRequirements`, `technicalRequirements`, `adjudicationCriteria`, `specialClauses`, `rawAgentOutput`)
 
 ### 1.3 Entidades
 
-- [ ] `TEST` `Tender` — `isExpired()`, `isNew()`, `getBasicInfo()`, igualdad por `expedientCode`
-- [ ] `EXCEPCIÓN` `ExpiredTenderError`
-- [ ] `IMPL` `Tender` (Entity)
+- [x] `TEST` `Tender` — `isNew()` con fecha hoy vs ayer, `getBasicInfo()` contiene campos API reales (`expedientId`, `titol`, `organ`, `pressupost`), igualdad por `expedientId`
+- [x] `EXCEPCIÓN` `ExpiredTenderError`
+- [x] `IMPL` `Tender` (Entity con campos `expedientId`, `publicacioId`, `titol`, `organ`, `pressupost`, `codiExpedient`, `fase`, `dataPublicacio`)
 
-- [ ] `TEST` `Document` — `isValidType()`, identidad por `(tenderId, type)`
-- [ ] `EXCEPCIÓN` `DuplicateTenderError`
-- [ ] `IMPL` `Document` (Entity)
+- [x] `TEST` `Document` — `isValidType()` True si type != UNKNOWN, identidad por `(expedientId, docId)`
+- [x] `EXCEPCIÓN` `DuplicateTenderError`
+- [x] `IMPL` `Document` (Entity con campos `expedientId`, `docId`, `titol`, `hash`, `midaKb`, `filePath`, `type`)
 
 - [ ] `TEST` `ScoredTender` — `isGo()` delega en `score.isViable()`, `getSummary()` estructura
 - [ ] `IMPL` `ScoredTender` (Entity)
@@ -183,117 +183,5 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 - [ ] Test end-to-end del pipeline completo con datos reales
 - [ ] Validar tiempo de ejecución < 1 minuto (R-03)
 - [ ] Validar deduplicación de licitaciones (RN-06)
-- [ ] Validar descarte de licitaciones expiradas (RN-05)
-- [ ] `README.md` con instrucciones de setup y ejecución
-
-
----
-
-## Fase 0 — Setup del proyecto
-
-- [ ] Inicializar estructura de carpetas (`domain/`, `application/`, `infrastructure/`)
-- [ ] Configurar `pyproject.toml` / `requirements.txt` con dependencias base (FastAPI, SQLAlchemy, Pydantic, Alembic, pytest)
-- [ ] Configurar variables de entorno (`.env` + `Settings` con Pydantic)
-- [ ] Configurar PostgreSQL con Docker Compose
-- [ ] Configurar pytest con estructura de tests espejo (`tests/domain/`, `tests/application/`, `tests/infrastructure/`)
-
----
-
-## Fase 1 — Dominio
-
-### Enums / Value Objects simples
-- [ ] `DocumentType` (Enum)
-- [ ] `TrafficLight` (Enum)
-- [ ] `FilterConfig` (Value Object, frozen dataclass)
-- [ ] `Score` (Value Object, frozen dataclass)
-- [ ] `Requirements` (Value Object, frozen dataclass)
-
-### Entidades
-- [ ] `Tender` (Entity)
-- [ ] `Document` (Entity)
-- [ ] `ScoredTender` (Entity)
-- [ ] `ComparativeReport` (Entity)
-
-### Excepciones
-- [ ] `DownloadError`
-- [ ] `FilterValidationError`
-- [ ] `DuplicateTenderError`
-- [ ] `ExpiredTenderError`
-
-### Eventos
-- [ ] `TenderDownloadedEvent`
-- [ ] `EvaluationCompletedEvent`
-- [ ] `ProcessFailedEvent`
-
----
-
-## Fase 2 — Aplicación
-
-### DTOs
-- [ ] `FilterConfigDTO`
-- [ ] `TenderDTO`
-- [ ] `DocumentDTO`
-- [ ] `ScoreDTO`
-
-### Ports (interfaces ABC)
-- [ ] `LicitationApiPort`
-- [ ] `TenderRepositoryPort`
-- [ ] `DocumentStoragePort`
-- [ ] `NotificationPort`
-
-### Casos de uso — Commands
-- [ ] `DownloadTendersCommandHandler`
-- [ ] `FilterTendersCommandHandler`
-- [ ] `ScoreTenderCommandHandler`
-
-### Casos de uso — Queries
-- [ ] `GetScoredTendersQueryHandler`
-- [ ] `GetComparativeReportQueryHandler`
-
----
-
-## Fase 3 — Infraestructura
-
-### Base de datos
-- [ ] Modelos SQLAlchemy (`TenderModel`, `DocumentModel`, `ScoreModel`)
-- [ ] Migraciones Alembic (creación de tablas)
-- [ ] `TenderRepository` (implementa `TenderRepositoryPort`)
-- [ ] `DocumentRepository` (implementa `DocumentStoragePort`)
-
-### Cliente externo
-- [ ] `ContractacioPublicaClient` (HTTP + paginación)
-- [ ] `RetryManager` (backoff exponencial, máx. 2 reintentos)
-- [ ] `DownloadMonitor` (progreso y errores)
-
-### Servicios
-- [ ] `NlpService` (extracción de requisitos con Timbal)
-- [ ] `EmailService` (implementa `NotificationPort`)
-
----
-
-## Fase 4 — API REST (FastAPI)
-
-### Schemas Pydantic
-- [ ] `FilterSchema` (request/response)
-- [ ] `TenderSchema`
-- [ ] `ReportSchema`
-- [ ] `PipelineStatusSchema`
-
-### Routers
-- [ ] `pipeline_router` — `POST /pipeline/run`, `GET /pipeline/status`
-- [ ] `filters_router` — `GET /filters`, `PUT /filters`
-- [ ] `tenders_router` — `GET /tenders`, `GET /tenders/{id}`
-- [ ] `reports_router` — `GET /reports`, `GET /reports/{id}`
-
-### App principal
-- [ ] `main.py` — setup FastAPI, registro de routers, manejo de errores global
-
----
-
-## Fase 5 — Tests de integración y ajustes finales
-
-- [ ] Tests de integración del pipeline completo (end-to-end)
-- [ ] Validar límite de 1 minuto (R-03)
-- [ ] Validar deduplicación (RN-06)
 - [ ] Validar descarte de licitaciones expiradas (RN-05)
 - [ ] `README.md` con instrucciones de setup y ejecución

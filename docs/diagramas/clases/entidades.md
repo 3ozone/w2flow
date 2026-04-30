@@ -1,74 +1,102 @@
 # Entidades del dominio
 
+> **Nota de implementación (abril 2026):** Los nombres de atributos siguen los campos reales
+> devueltos por la API de contractaciopublica.cat, verificados empíricamente.
+> Ver `examples/tender_downloader.py` y `docs/api-contractaciopublica/README.md`.
+
 ## Tender — `Entity` · `Aggregate Root`
 Representa una licitación pública publicada en contractaciopublica.cat.
 
-> **Identidad:** `expedientCode` — dos licitaciones son distintas aunque tengan los mismos datos si su código difiere.  
-> **Python:** clase normal con `__eq__` basado en `expedientCode`.
+> **Identidad:** `expedientId` (UUID string) — dos licitaciones son distintas si su UUID difiere.  
+> **Python:** clase normal con `__eq__` basado en `expedientId`.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
-| expedientCode | String | Código único del expediente |
-| contractingBody | String | Órgano de contratación |
-| amount | float | Importe del contrato |
-| cpvCode | String | Código CPV |
-| executionDeadline | int | Plazo de ejecución (días) |
-| presentationDeadline | DateTime | Fecha límite de presentación |
-| publicationDate | DateTime | Fecha de publicación |
+| expedientId | String | UUID único del expediente (campo `expedientId` de la API) |
+| publicacioId | int | ID de publicación (campo `id` de la API, usado para fetch detail) |
+| titol | String | Título de la licitación (campo `titol` de la API) |
+| organ | String | Órgano de contratación (campo `organ` de la API) |
+| pressupost | float | Importe base de licitación (campo `pressupostLicitacio` de la API) |
+| codiExpedient | String | Código legible del expediente (campo `codiExpedient` de la API) |
+| fase | String | Fase actual (extraída de `dades.publicacio.fase.text` del detalle) |
+| dataPublicacio | String | Fecha de publicación (extraída de `navegacioFases[-1].dataPublicacio`) |
 
 **Métodos**
 
 | Método | Retorno | Descripción |
 |---|---|---|
-| `isExpired()` | bool | True si presentationDeadline < hoy (RN-05) |
-| `isNew()` | bool | True si publicationDate == hoy (R-02) |
+| `isNew()` | bool | True si dataPublicacio == hoy (R-02) |
 | `getBasicInfo()` | dict | Devuelve los campos principales como diccionario |
 
 ---
 
 ## FilterConfig — `Value Object`
-Criterios que debe cumplir una licitación para ser candidata (RF-03, RN-01).
+Parámetros de búsqueda que se envían a la API (RF-03, R-05).  
+El filtrado grueso lo hace la API; `matches()` aplica criterios adicionales sobre los resultados.
 
 > **Sin identidad:** dos `FilterConfig` con los mismos valores son equivalentes.  
 > **Python:** `@dataclass(frozen=True)` con `__eq__` por valor.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
-| workType | String | Tipología de obra |
-| priceRange | Range | Rango de importe (min/max) |
-| geographicArea | String | Área geográfica |
-| cpvCodes | List | Códigos CPV permitidos |
-| executionDeadline | int | Plazo máximo de ejecución |
-| businessClassification | String | Clasificación empresarial requerida |
+| tipusExpedient | int | Tipo de expediente: `1` = licitaciones/contratos |
+| faseVigent | int | Fase activa: `0` = solo en plazo (anunci de licitació) |
+| maxResults | int | Número máximo de licitaciones a procesar |
+| sectorKeywords | List[str] | Palabras clave de sector para filtrado adicional |
+| minPressupost | float | Importe mínimo (0 = sin límite) |
 
 **Métodos**
 
 | Método | Retorno | Descripción |
 |---|---|---|
-| `validate()` | bool | Comprueba que todos los filtros obligatorios están informados (R-05) |
-| `matches(tender)` | bool | True si la licitación cumple todos los criterios configurados (RN-01) |
+| `toApiParams()` | dict | Devuelve los parámetros listos para enviar a `/cerca-avancada` |
+| `matches(tender)` | bool | True si la licitación cumple los criterios adicionales de importe y sector (R-05) |
 
 ---
 
 ## Document — `Entity`
 Fichero adjunto descargado de una licitación candidata (RF-04, RN-02).
 
-> **Identidad:** combinación `tenderId` + `type` — no puede haber dos PCAP del mismo expediente.  
-> **Python:** clase normal con `__eq__` basado en `(tenderId, type)`.
+> **Identidad:** combinación `expedientId` + `docId` — no puede haber dos documentos con el mismo id en el mismo expediente.  
+> **Python:** clase normal con `__eq__` basado en `(expedientId, docId)`.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
-| tenderId | String | Referencia a la licitación |
-| type | Enum | PCAP / PPT / TECHNICAL_MEMORY / BUDGET / ANNEXES |
-| filePath | String | Ruta de almacenamiento local |
-| downloadDate | DateTime | Fecha de descarga |
+| expedientId | String | UUID del expediente al que pertenece |
+| docId | int | ID del documento (campo `id` del nodo en el JSON de detalle) |
+| titol | String | Nombre del fichero (campo `titol` del nodo) |
+| hash | String | Hash del fichero para la URL de descarga (campo `hash` del nodo) |
+| midaKb | float | Tamaño en KB (campo `mida` / 1024) |
+| filePath | String | Ruta local donde se guardó el fichero descargado |
+| type | DocumentType | Tipo clasificado a partir del `titol` (PCAP/PPT/TECHNICAL_MEMORY/BUDGET/ANNEXES/UNKNOWN) |
 
 **Métodos**
 
 | Método | Retorno | Descripción |
 |---|---|---|
-| `isValidType()` | bool | Comprueba que el tipo está entre los obligatorios: PCAP, PPT, TECHNICAL_MEMORY, BUDGET, ANNEXES (RN-02) |
+| `isValidType()` | bool | True si `type` != UNKNOWN |
 | `isDuplicate(storage)` | bool | Consulta el almacenamiento para saber si ya fue descargado (RN-06) |
+
+---
+
+## DocumentType — `Enum`
+Clasificación del tipo de documento adjunto a una licitación.  
+Se infiere del campo `titol` del nodo JSON mediante `from_title()`.
+
+| Valor | Descripción |
+|---|---|
+| `PCAP` | Pliego de Cláusulas Administrativas Particulares |
+| `PPT` | Pliego de Prescripciones Técnicas |
+| `TECHNICAL_MEMORY` | Memoria técnica |
+| `BUDGET` | Presupuesto base |
+| `ANNEXES` | Anexos varios |
+| `UNKNOWN` | Tipo no reconocido en el `titol` |
+
+**Métodos**
+
+| Método | Retorno | Descripción |
+|---|---|---|
+| `from_title(titol: str)` | DocumentType | Infiere el tipo a partir del nombre del fichero (heurística por palabras clave) |
 
 ---
 
@@ -80,50 +108,65 @@ Resultado de la evaluación de viabilidad de una licitación (RF-06, RN-03).
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
-| tenderId | String | Referencia a la licitación |
-| economicScore | float | Puntuación económica (0–100) |
-| technicalScore | float | Puntuación técnica (0–100) |
-| totalScore | float | Puntuación total (0–100) |
-| trafficLight | Enum | GREEN (≥70) / YELLOW (40–69) / RED (<40) |
+| expedientId | String | UUID del expediente evaluado |
+| total | int | Puntuación total (0–70 pts) |
+| detall | dict | Desglose por criterio: pressupost, sector_positiu, sector_negatiu, procediment_obert, subcontractació |
+| paraulesClauTrobades | List[str] | Palabras clave del sector positivo encontradas |
+| penalitzacions | List[str] | Palabras clave del sector negativo encontradas |
+| recomanacio | str | "✅ RECOMANADA" (≥50) / "⚠️ A VALORAR" (≥25) / "❌ NO RECOMANADA" (<25) |
+
+**Criterios de puntuación (máx 70 pts)**
+
+| Criterio | Puntos | Condición |
+|---|---|---|
+| Presupuesto | 25 | ≥ 1.000.000 € |
+| | 20 | ≥ 500.000 € |
+| | 10 | ≥ 100.000 € |
+| | 5 | resto |
+| Sector positivo | +5/kw | máx 30 pts |
+| Sector negativo | -10/kw | sin límite |
+| Procedimiento abierto | +10 | si "procediment obert" en texto |
+| Subcontratación | +5 | si "subcontract" en texto |
 
 **Métodos**
 
 | Método | Retorno | Descripción |
 |---|---|---|
-| `isViable()` | bool | True si totalScore ≥ 40 (semáforo no rojo) |
-| `assignTrafficLight()` | Enum | Calcula el semáforo según totalScore (RN-03) |
+| `isViable()` | bool | True si total ≥ 25 (semáforo no rojo) |
+| `assignTrafficLight()` | TrafficLight | GREEN (≥50) / YELLOW (≥25) / RED (<25) |
 | `toReport()` | dict | Serializa la puntuación para el informe comparativo (RF-07) |
 
 ---
 
 ## Requirements — `Value Object`
-Información extraída mediante NLP de los documentos de una licitación (RF-05).
+Información estructurada extraída por el agente LLM de los documentos de una licitación (RF-05).  
+El agente Timbal analiza los PDFs descargados y devuelve esta estructura.
 
 > **Sin identidad:** inmutable una vez extraído. Se reemplaza completo si se reprocesa.  
 > **Python:** `@dataclass(frozen=True)` con `__eq__` por valor.
 
 | Atributo | Tipo | Descripción |
 |---|---|---|
-| tenderId | String | Referencia a la licitación |
-| solvencyRequirements | List | Requisitos de solvencia económica y técnica |
-| technicalRequirements | List | Requisitos técnicos del pliego |
-| adminRequirements | List | Condiciones administrativas especiales |
-| adjudicationCriteria | List | Criterios de adjudicación y sus pesos |
-| specialClauses | List | Cláusulas atípicas detectadas |
+| expedientId | String | UUID del expediente analizado |
+| solvencyRequirements | List[str] | Requisitos de solvencia económica y técnica |
+| technicalRequirements | List[str] | Requisitos técnicos del pliego |
+| adjudicationCriteria | List[str] | Criterios de adjudicación y sus pesos |
+| specialClauses | List[str] | Cláusulas atípicas detectadas |
+| rawAgentOutput | String | Texto completo generado por el agente LLM |
 
 **Métodos**
 
 | Método | Retorno | Descripción |
 |---|---|---|
-| `isEmpty()` | bool | True si no se extrajo ningún requisito (indica fallo de extracción) |
-| `toDict()` | dict | Serializa los requisitos para pasarlos al motor de puntuación |
+| `isEmpty()` | bool | True si no se extrajo ningún requisito (indica fallo del agente) |
+| `toDict()` | dict | Serializa los requisitos para el informe comparativo |
 
 ---
 
 ## ScoredTender — `Entity`
 Agrega todos los datos de una licitación tras pasar por el pipeline completo (RF-06, RF-07).
 
-> **Identidad:** la de su `Tender` interno (`expedientCode`). Es la entidad que "viaja" por el pipeline.  
+> **Identidad:** la de su `Tender` interno (`expedientId`). Es la entidad que "viaja" por el pipeline.  
 > **Python:** clase normal con `__eq__` delegado a `tender.expedientCode`.
 
 | Atributo | Tipo | Descripción |
