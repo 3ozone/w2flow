@@ -368,4 +368,4 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 ### 9.5 Integración final
 
 - [x] `IMPL` `main.py` — registrar `ui_router` sin prefijo `/api/v1`
-- [ ] Validar flujo completo: configurar filtro → ejecutar pipeline → ver tenders → descargar PDF → leer análisis Gemini
+- [x] Validar flujo completo: configurar filtro → ejecutar pipeline → ver tenders → descargar PDF → leer análisis Gemini

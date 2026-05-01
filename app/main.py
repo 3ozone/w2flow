@@ -30,7 +30,7 @@ _BASE_DIR = Path(__file__).resolve().parent
 app = FastAPI(
     title="w2flow",
     description="Automated public tender monitoring and scoring API.",
-    version="0.4.0",
+    version="1.0.0",
 )
 
 # Static files and templates
