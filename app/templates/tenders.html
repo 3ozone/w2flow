@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Licitacions{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">Licitacions</h1>
+    <span class="text-sm text-gray-400">{{ tenders | length }} registres</span>
+  </div>
+
+  {% if tenders %}
+  <div class="overflow-hidden rounded-xl border bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left font-semibold text-gray-500 w-8"></th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-500">Títol</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-500">Òrgan</th>
+          <th class="px-4 py-3 text-right font-semibold text-gray-500">Pressupost</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Puntuació</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Semàfor</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Data</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Docs</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for st in tenders %}
+        {% set tid = st.tender.expedient_id %}
+        {% set tl = st.score.assign_traffic_light().value %}
+
+        <!-- Tender row -->
+        <tr class="hover:bg-gray-50 cursor-pointer"
+            hx-get="/partials/tenders/{{ tid }}/documents"
+            hx-target="#docs-{{ tid }}"
+            hx-swap="outerHTML"
+            hx-trigger="click"
+            hx-indicator="#spinner-{{ tid }}">
+          <td class="px-4 py-3 text-gray-300">
+            <span id="spinner-{{ tid }}" class="htmx-indicator animate-spin">⟳</span>
+            <span class="htmx-settle">▶</span>
+          </td>
+          <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate" title="{{ st.tender.titol }}">
+            {{ st.tender.titol }}
+          </td>
+          <td class="px-4 py-3 text-gray-600 max-w-xs truncate" title="{{ st.tender.organ }}">
+            {{ st.tender.organ }}
+          </td>
+          <td class="px-4 py-3 text-right text-gray-700 tabular-nums">
+            {{ "{:,.0f}".format(st.tender.pressupost) }} €
+          </td>
+          <td class="px-4 py-3 text-center font-semibold
+            {% if st.score.total >= 60 %}text-green-600
+            {% elif st.score.total >= 30 %}text-yellow-600
+            {% else %}text-red-500{% endif %}">
+            {{ st.score.total }}
+          </td>
+          <td class="px-4 py-3 text-center text-lg">
+            {% if tl == "green" %}🟢
+            {% elif tl == "yellow" %}🟡
+            {% else %}🔴{% endif %}
+          </td>
+          <td class="px-4 py-3 text-center text-gray-500">
+            {{ st.tender.data_publicacio }}
+          </td>
+          <td class="px-4 py-3 text-center">
+            <button
+              onclick="event.stopPropagation()"
+              hx-get="/partials/tenders/{{ tid }}/documents"
+              hx-target="#docs-{{ tid }}"
+              hx-swap="outerHTML"
+              class="text-indigo-500 hover:text-indigo-700 text-xs underline">
+              📎 veure
+            </button>
+          </td>
+        </tr>
+
+        <!-- Expandable documents row (initially empty) -->
+        <tr>
+          <td colspan="8" class="p-0">
+            <div id="docs-{{ tid }}"></div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="rounded-xl border bg-white shadow-sm p-10 text-center text-gray-400">
+    <p class="text-4xl mb-3">📭</p>
+    <p class="text-base">Encara no hi ha licitacions processades.</p>
+    <p class="text-sm mt-1">Executa el pipeline des del <a href="/" class="text-indigo-600 hover:underline">Dashboard</a>.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

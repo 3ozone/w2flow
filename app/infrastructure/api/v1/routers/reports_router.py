@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.domain.entities.comparative_report import ComparativeReport
@@ -76,3 +77,14 @@ async def get_report_analysis(report_id: str) -> _AnalysisResponse:
         raise HTTPException(
             status_code=404, detail=f"Analysis for report '{report_id}' not found")
     return _AnalysisResponse(analysis=text)
+
+
+@router.delete("/reports/{report_id}", status_code=204)
+async def delete_report(report_id: str) -> Response:
+    """Delete a report and its analysis from the in-memory store, or 404 if not found."""
+    if report_id not in _reports:
+        raise HTTPException(
+            status_code=404, detail=f"Report '{report_id}' not found")
+    del _reports[report_id]
+    _reports_analysis.pop(report_id, None)
+    return Response(status_code=204)

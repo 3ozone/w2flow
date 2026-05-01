@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from app.domain.entities.document import Document
 from app.domain.entities.tender import Tender
 from app.domain.entities.scored_tender import ScoredTender
 
@@ -26,3 +27,11 @@ class TenderRepositoryPort(ABC):
     @abstractmethod
     async def list_scored(self, page: int = 0, size: int = 20) -> list[ScoredTender]:
         """Return a paginated list of scored tenders."""
+
+    @abstractmethod
+    async def list_documents(self, expedient_id: str) -> list[Document]:
+        """Return all documents stored for the given expedient_id."""
+
+    @abstractmethod
+    async def delete(self, expedient_id: str) -> None:
+        """Delete a tender and all its associated scores and documents."""

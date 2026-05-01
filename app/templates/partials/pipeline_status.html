@@ -1,0 +1,50 @@
+<!-- Partial: pipeline status badge + progress. Polled every 2s while RUNNING -->
+<div id="pipeline-status"
+  {% if state == "running" %}
+  hx-get="/partials/pipeline-status"
+  hx-trigger="every 2s"
+  hx-swap="outerHTML"
+  {% endif %}
+  class="rounded-xl border bg-white shadow-sm p-6">
+
+  <div class="flex items-center gap-3 mb-4">
+    {% if state == "idle" %}
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">⬜ INACTIU</span>
+    {% elif state == "running" %}
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700 animate-pulse">🔄 EXECUTANT…</span>
+    {% elif state == "completed" %}
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">✅ COMPLETAT</span>
+    {% elif state == "failed" %}
+      <span class="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700">❌ ERROR</span>
+    {% endif %}
+    <span class="text-sm text-gray-400 ml-auto">Estat del pipeline</span>
+  </div>
+
+  {% if state in ("running", "completed") %}
+  <div class="grid grid-cols-3 gap-4 text-center text-sm mb-4">
+    <div class="rounded-lg bg-gray-50 p-3">
+      <div class="text-2xl font-bold text-indigo-600">{{ total }}</div>
+      <div class="text-gray-500 mt-1">Total</div>
+    </div>
+    <div class="rounded-lg bg-gray-50 p-3">
+      <div class="text-2xl font-bold text-green-600">{{ downloaded }}</div>
+      <div class="text-gray-500 mt-1">Descarregats</div>
+    </div>
+    <div class="rounded-lg bg-gray-50 p-3">
+      <div class="text-2xl font-bold text-gray-400">{{ skipped }}</div>
+      <div class="text-gray-500 mt-1">Omesos</div>
+    </div>
+  </div>
+
+  {% if total > 0 %}
+  <div class="w-full bg-gray-200 rounded-full h-2">
+    <div class="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+         style="width: {{ ((downloaded + skipped) / total * 100) | round | int }}%"></div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% if state == "failed" and error %}
+  <p class="mt-3 text-sm text-red-600 font-mono bg-red-50 rounded p-2">{{ error }}</p>
+  {% endif %}
+</div>

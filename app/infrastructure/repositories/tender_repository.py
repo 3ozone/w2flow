@@ -90,6 +90,44 @@ class TenderRepository(TenderRepositoryPort):
             result.append(ScoredTender(tender=tender, score=score, requirements=None))
         return result
 
+    async def list_documents(self, expedient_id: str) -> list:
+        """Return all documents stored for the given expedient_id."""
+        from app.domain.entities.document import Document
+        from app.domain.value_objects.document_type import DocumentType
+        from app.infrastructure.repositories.models import DocumentModel
+        models = (
+            self._session.query(DocumentModel)
+            .filter(DocumentModel.expedient_id == expedient_id)
+            .all()
+        )
+        return [
+            Document(
+                expedient_id=m.expedient_id,
+                doc_id=m.doc_id,
+                titol=m.titol,
+                hash=m.hash,
+                mida_kb=m.mida_kb,
+                file_path=m.file_path,
+                type=DocumentType(m.type),
+            )
+            for m in models
+        ]
+
+    async def delete(self, expedient_id: str) -> None:
+        """Delete a tender and all its associated scores and documents."""
+        from app.infrastructure.repositories.models import DocumentModel
+        self._session.query(ScoreModel).filter(
+            ScoreModel.expedient_id == expedient_id
+        ).delete(synchronize_session=False)
+        self._session.query(DocumentModel).filter(
+            DocumentModel.expedient_id == expedient_id
+        ).delete(synchronize_session=False)
+        self._session.query(TenderModel).filter(
+            TenderModel.expedient_id == expedient_id
+        ).delete(synchronize_session=False)
+        self._session.flush()
+        self._session.commit()
+
     @staticmethod
     def _to_tender(model: TenderModel) -> Tender:
         return Tender(

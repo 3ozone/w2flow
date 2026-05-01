@@ -129,8 +129,44 @@ class TestDocumentRepositoryGetPath:
 
     @pytest.mark.asyncio
     async def test_get_path_returns_path_after_save(self, repository):
-        """get_path() must return the stored file path after save()."""
+        """get_path() must return the path that save() computed and stored."""
         doc = _make_document(doc_id=5)
-        await repository.save(doc, content=b"PDF")
+        stored_path = await repository.save(doc, content=b"PDF")
         path = await repository.get_path(doc.expedient_id, doc.doc_id)
-        assert path == doc.file_path
+        assert path == stored_path
+
+
+class TestDocumentRepositoryDiskWrite:
+    """Tests that DocumentRepository writes PDF bytes to disk."""
+
+    @pytest.fixture
+    def repo_with_disk(self, session_with_tender, tmp_path):
+        """DocumentRepository with a temporary base_dir on disk."""
+        return DocumentRepository(session=session_with_tender, base_dir=tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_save_writes_bytes_to_disk(self, repo_with_disk, tmp_path):
+        """save() must create a file on disk with the PDF content."""
+        doc = _make_document(doc_id=10)
+        content = b"%PDF-test-content"
+        await repo_with_disk.save(doc, content=content)
+        expected = tmp_path / doc.expedient_id / doc.titol
+        assert expected.exists()
+        assert expected.read_bytes() == content
+
+    @pytest.mark.asyncio
+    async def test_save_returns_disk_path(self, repo_with_disk, tmp_path):
+        """save() must return the path where the file was written on disk."""
+        doc = _make_document(doc_id=11)
+        path = await repo_with_disk.save(doc, content=b"%PDF")
+        expected = str(tmp_path / doc.expedient_id / doc.titol)
+        assert path == expected
+
+    @pytest.mark.asyncio
+    async def test_save_overwrites_file_on_duplicate(self, repo_with_disk, tmp_path):
+        """save() called twice must overwrite the file with the new content."""
+        doc = _make_document(doc_id=12)
+        await repo_with_disk.save(doc, content=b"first version")
+        await repo_with_disk.save(doc, content=b"second version")
+        expected = tmp_path / doc.expedient_id / doc.titol
+        assert expected.read_bytes() == b"second version"

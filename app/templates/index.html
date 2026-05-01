@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Header row: title + health badge -->
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <span id="health-badge"
+      hx-get="/partials/health"
+      hx-trigger="load, every 30s"
+      hx-swap="outerHTML"
+      class="text-sm text-gray-400">Comprovant…</span>
+  </div>
+
+  <!-- Active filter card -->
+  <div class="rounded-xl border bg-white shadow-sm p-6">
+    <h2 class="text-base font-semibold text-gray-700 mb-3">Filtre actiu</h2>
+    {% if filter %}
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2 text-sm">
+      <div>
+        <dt class="text-gray-400">Tipus expedient</dt>
+        <dd class="font-medium">{{ filter.tipus_expedient }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-400">Fase vigent</dt>
+        <dd class="font-medium">{{ filter.fase_vigent }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-400">Pressupost mínim</dt>
+        <dd class="font-medium">{% if filter.min_pressupost %}{{ filter.min_pressupost | int }} €{% else %}—{% endif %}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-400">Keywords</dt>
+        <dd class="font-medium">{{ filter.sector_keywords | join(", ") or "—" }}</dd>
+      </div>
+    </dl>
+    <a href="/filters" class="mt-4 inline-block text-sm text-indigo-600 hover:underline">Editar filtre →</a>
+    {% else %}
+    <p class="text-sm text-gray-500">Cap filtre configurat. <a href="/filters" class="text-indigo-600 hover:underline">Configura'n un</a> abans d'executar el pipeline.</p>
+    {% endif %}
+  </div>
+
+  <!-- Run pipeline button -->
+  <div class="flex items-center gap-4">
+    <button
+      hx-post="/api/v1/pipeline/run"
+      hx-swap="none"
+      hx-on::after-request="htmx.ajax('GET', '/partials/pipeline-status', {target:'#pipeline-status', swap:'outerHTML'})"
+      {% if not filter %}disabled{% endif %}
+      class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+      ▶ Executar Pipeline
+    </button>
+    {% if not filter %}
+    <span class="text-sm text-gray-400">Cal configurar un filtre primer.</span>
+    {% endif %}
+  </div>
+
+  <!-- Pipeline status (polled when running) -->
+  {% include "partials/pipeline_status.html" %}
+
+</div>
+{% endblock %}

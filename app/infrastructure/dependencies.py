@@ -6,14 +6,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.infrastructure.repositories.document_repository import DocumentRepository
 from app.infrastructure.repositories.tender_repository import TenderRepository
 from app.infrastructure.services.contractacio_publica_client import (
     ContractacioPublicaClient,
 )
-from app.infrastructure.services.local_document_storage import LocalDocumentStorage
 
 # Built once at startup, reused across all routers
-_engine = create_engine(settings.database_url) if settings.database_url else None
+_engine = create_engine(
+    settings.database_url) if settings.database_url else None
 _session: Session | None = Session(_engine) if _engine else None
 
 api_client = ContractacioPublicaClient(
@@ -25,4 +26,7 @@ repository: TenderRepository | None = (
     TenderRepository(session=_session) if _session else None
 )
 
-document_storage = LocalDocumentStorage(base_dir=settings.download_dir)
+document_storage: DocumentRepository | None = (
+    DocumentRepository(session=_session, base_dir=settings.download_dir)
+    if _session else None
+)

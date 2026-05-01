@@ -1,0 +1,34 @@
+<!-- Partial: document list for a tender. Loaded via hx-get on row expand -->
+<div id="docs-{{ expedient_id }}" class="px-4 py-3 bg-gray-50 border-t border-gray-100">
+  {% if documents %}
+  <ul class="divide-y divide-gray-100">
+    {% for doc in documents %}
+    <li class="flex items-center justify-between py-2 text-sm">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="text-gray-400 shrink-0">
+          {% if doc.type == "plec_clausules" %}📋
+          {% elif doc.type == "plec_prescripcions" %}📐
+          {% elif doc.type == "anunci" %}📢
+          {% else %}📄{% endif %}
+        </span>
+        <span class="truncate text-gray-700 font-medium">{{ doc.titol }}</span>
+        <span class="shrink-0 text-xs text-gray-400">{{ doc.type }}</span>
+      </div>
+      <div class="flex items-center gap-4 shrink-0 ml-4">
+        <span class="text-xs text-gray-400">{{ "%.1f"|format(doc.mida_kb) }} KB</span>
+        {% if doc.file_path %}
+        <a href="/api/v1/tenders/{{ expedient_id }}/documents/{{ doc.doc_id }}/download"
+           class="text-indigo-600 hover:underline text-xs font-medium">
+          ⬇ Descarregar
+        </a>
+        {% else %}
+        <span class="text-xs text-gray-300">no disponible</span>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-sm text-gray-400 py-2">Cap document disponible per aquesta licitació.</p>
+  {% endif %}
+</div>

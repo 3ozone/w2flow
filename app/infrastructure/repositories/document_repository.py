@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
 from app.application.ports.document_storage_port import DocumentStoragePort
@@ -10,29 +13,35 @@ from app.infrastructure.repositories.models import DocumentModel
 
 
 class DocumentRepository(DocumentStoragePort):
-    """Persists and retrieves Documents using SQLAlchemy.
+    """Persists and retrieves Documents: writes PDF to disk and metadata to DB.
 
     Deduplication (RN-06): saving a document that already exists is idempotent
-    — it updates the record in place and returns the stored file path.
+    — it overwrites the file on disk, updates the DB record and returns the path.
     """
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, base_dir: str | Path = "downloads") -> None:
         self._session = session
+        self._base_dir = Path(base_dir)
 
     async def save(self, document: Document, content: bytes) -> str:
-        """Persist document metadata. Returns the stored file path."""
+        """Write PDF bytes to disk and persist metadata to DB. Returns the file path."""
+        dest_dir = self._base_dir / document.expedient_id
+        await asyncio.to_thread(dest_dir.mkdir, parents=True, exist_ok=True)
+        dest = dest_dir / document.titol
+        await asyncio.to_thread(dest.write_bytes, content)
+        file_path = str(dest)
+
         existing = self._session.get(
             DocumentModel, (document.expedient_id, document.doc_id)
         )
         if existing is not None:
-            # Idempotent: update fields and return existing path
             existing.titol = document.titol
             existing.hash = document.hash
             existing.mida_kb = document.mida_kb
-            existing.file_path = document.file_path
+            existing.file_path = file_path
             existing.type = document.type.value
             self._session.flush()
-            return existing.file_path
+            return file_path
 
         model = DocumentModel(
             expedient_id=document.expedient_id,
@@ -40,12 +49,12 @@ class DocumentRepository(DocumentStoragePort):
             titol=document.titol,
             hash=document.hash,
             mida_kb=document.mida_kb,
-            file_path=document.file_path,
+            file_path=file_path,
             type=document.type.value,
         )
         self._session.add(model)
         self._session.flush()
-        return model.file_path
+        return file_path
 
     async def exists(self, expedient_id: str, doc_id: int) -> bool:
         """Return True if the document has already been stored."""

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ca" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}w2flow{% endblock %} — w2flow</title>
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- HTMX CDN -->
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body class="h-full flex flex-col font-sans text-gray-800">
+
+  <!-- Navbar -->
+  <nav class="bg-indigo-700 text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+        <a href="/" class="text-xl font-bold tracking-tight">w2flow</a>
+        <div class="flex gap-6 text-sm font-medium">
+          <a href="/" class="hover:text-indigo-200 transition-colors">Dashboard</a>
+          <a href="/tenders" class="hover:text-indigo-200 transition-colors">Licitacions</a>
+          <a href="/reports" class="hover:text-indigo-200 transition-colors">Informes</a>
+          <a href="/filters" class="hover:text-indigo-200 transition-colors">Filtres</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Flash messages (errors/info passed via template context) -->
+  {% if flash %}
+  <div class="max-w-7xl mx-auto w-full px-4 mt-4">
+    <div class="rounded-md bg-yellow-50 border border-yellow-300 p-3 text-sm text-yellow-800">
+      {{ flash }}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Main content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t text-center text-xs text-gray-400 py-3">
+    w2flow · Contractació Pública Automatitzada
+  </footer>
+
+</body>
+</html>

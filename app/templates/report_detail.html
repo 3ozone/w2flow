@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Informe {{ report_id[:8] }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <!-- Header -->
+  <div class="flex items-center gap-4">
+    <a href="/reports" class="text-sm text-indigo-600 hover:underline">← Informes</a>
+    <h1 class="text-2xl font-bold text-gray-900">
+      Informe <span class="font-mono text-lg text-gray-400">{{ report_id[:8] }}…</span>
+    </h1>
+  </div>
+
+  <!-- Summary stats -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+    <div class="rounded-xl border bg-white shadow-sm p-5 text-center">
+      <div class="text-3xl font-bold text-indigo-600">{{ report.scored_tenders | length }}</div>
+      <div class="text-sm text-gray-500 mt-1">Total analitzades</div>
+    </div>
+    <div class="rounded-xl border bg-white shadow-sm p-5 text-center">
+      <div class="text-3xl font-bold text-green-600">{{ viable_count }}</div>
+      <div class="text-sm text-gray-500 mt-1">Viables (✅)</div>
+    </div>
+    <div class="rounded-xl border bg-white shadow-sm p-5 text-center">
+      <div class="text-3xl font-bold text-gray-400">{{ report.scored_tenders | length - viable_count }}</div>
+      <div class="text-sm text-gray-500 mt-1">Descartades</div>
+    </div>
+  </div>
+
+  <!-- Narrative analysis (collapsible) -->
+  {% if analysis %}
+  <details class="rounded-xl border bg-white shadow-sm">
+    <summary class="cursor-pointer px-6 py-4 font-semibold text-gray-700 select-none hover:bg-gray-50 rounded-xl">
+      🤖 Anàlisi narrativa de Gemini
+    </summary>
+    <div class="px-6 pb-6 pt-2 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border-t">
+      {{ analysis }}
+    </div>
+  </details>
+  {% endif %}
+
+  <!-- Tenders table -->
+  <div class="overflow-hidden rounded-xl border bg-white shadow-sm">
+    <div class="px-6 py-4 border-b">
+      <h2 class="font-semibold text-gray-700">Licitacions puntuades</h2>
+    </div>
+    <table class="min-w-full divide-y divide-gray-100 text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left font-semibold text-gray-500">Títol</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-500">Òrgan</th>
+          <th class="px-4 py-3 text-right font-semibold text-gray-500">Pressupost</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Punt.</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Semàfor</th>
+          <th class="px-4 py-3 text-left font-semibold text-gray-500">Recomanació</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for st in report.scored_tenders %}
+        {% set tl = st.score.assign_traffic_light().value %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate" title="{{ st.tender.titol }}">
+            {{ st.tender.titol }}
+          </td>
+          <td class="px-4 py-3 text-gray-600 max-w-xs truncate" title="{{ st.tender.organ }}">
+            {{ st.tender.organ }}
+          </td>
+          <td class="px-4 py-3 text-right text-gray-700 tabular-nums">
+            {{ "{:,.0f}".format(st.tender.pressupost) }} €
+          </td>
+          <td class="px-4 py-3 text-center font-semibold
+            {% if st.score.total >= 60 %}text-green-600
+            {% elif st.score.total >= 30 %}text-yellow-600
+            {% else %}text-red-500{% endif %}">
+            {{ st.score.total }}
+          </td>
+          <td class="px-4 py-3 text-center text-lg">
+            {% if tl == "green" %}🟢
+            {% elif tl == "yellow" %}🟡
+            {% else %}🔴{% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-600 text-xs">
+            {{ st.score.recomanacio }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

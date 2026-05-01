@@ -159,3 +159,47 @@ class TestGetReportAnalysis:
         response = client.get("/api/v1/reports/report-1/analysis")
         data = response.json()
         assert set(data.keys()) == {"analysis"}
+
+
+class TestDeleteReport:
+    """Tests for DELETE /api/v1/reports/{id}."""
+
+    @pytest.fixture(autouse=True)
+    def reset_analysis(self):
+        """Clear in-memory analysis store before each test."""
+        original = dict(router_module._reports_analysis)
+        router_module._reports_analysis.clear()
+        yield
+        router_module._reports_analysis.clear()
+        router_module._reports_analysis.update(original)
+
+    def test_returns_204_when_report_exists(self, client):
+        """DELETE /reports/{id} must return 204 when the report exists."""
+        router_module._reports["report-1"] = _make_report()
+        response = client.delete("/api/v1/reports/report-1")
+        assert response.status_code == 204
+
+    def test_removes_report_from_store(self, client):
+        """DELETE /reports/{id} must remove the entry from _reports."""
+        router_module._reports["report-1"] = _make_report()
+        client.delete("/api/v1/reports/report-1")
+        assert "report-1" not in router_module._reports
+
+    def test_removes_analysis_from_store(self, client):
+        """DELETE /reports/{id} must also remove the analysis if it exists."""
+        router_module._reports["report-1"] = _make_report()
+        router_module._reports_analysis["report-1"] = "Anàlisi."
+        client.delete("/api/v1/reports/report-1")
+        assert "report-1" not in router_module._reports_analysis
+
+    def test_returns_404_when_report_not_found(self, client):
+        """DELETE /reports/{id} must return 404 for unknown id."""
+        response = client.delete("/api/v1/reports/nonexistent")
+        assert response.status_code == 404
+
+    def test_second_delete_returns_404(self, client):
+        """A second DELETE on the same id must return 404."""
+        router_module._reports["report-1"] = _make_report()
+        client.delete("/api/v1/reports/report-1")
+        response = client.delete("/api/v1/reports/report-1")
+        assert response.status_code == 404
