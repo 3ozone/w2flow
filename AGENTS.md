@@ -54,6 +54,63 @@ Agente: "He creado el test, la excepción y la entity PasswordHistory.
 
 ---
 
+## 🔧 Proceso Obligatorio para Refactors
+
+Un refactor es cualquier cambio que **modifica la estructura del código sin añadir funcionalidad nueva** (mover responsabilidades entre capas, extraer un handler, introducir un puerto, renombrar, etc.).
+
+**REGLA DE ORO**: Los refactors siguen el mismo flujo estricto que las nuevas tareas — **un paso a la vez, con aprobación entre cada paso**.
+
+### Flujo Estricto para Refactors
+
+1. **Crear TEST** que cubra el comportamiento actual (si no existe) → ⛔ **PARAR** → Explicar qué test acabas de crear → Pedir permiso para continuar
+2. **Crear EXCEPCIÓN** (si necesaria) → ⛔ **PARAR** → Explicar qué excepción creaste → Pedir permiso
+3. **Crear IMPLEMENTACIÓN** del código refactorizado → ⛔ **PARAR** → Explicar qué cambiaste y por qué respeta la arquitectura → Pedir permiso
+4. **Ejecutar TESTS** → ⛔ **PARAR** → Mostrar resultado (GREEN/RED) → Pedir permiso
+5. **Actualizar TASKS.md** → ⛔ **PARAR** → Confirmar cambio → Pedir permiso para el siguiente paso del refactor
+
+### ❌ PROHIBIDO en Refactors
+
+- Mover código a otra capa sin test previo que valide el comportamiento
+- Refactorizar varios ficheros a la vez sin aprobación entre cada uno
+- Aprovechar un refactor para añadir funcionalidad nueva ("refactor" ≠ "refactor + feature")
+- Cambiar la firma pública de un handler o port sin actualizar todos sus usos en el mismo paso
+
+### 🏛️ Reglas de Arquitectura para Refactors
+
+- **Siempre respetar la regla de dependencia**: dominio → aplicación → infraestructura → presentación. Nunca al revés.
+- **Presentación nunca instancia entidades de dominio** directamente — debe pasar por un handler de aplicación.
+- **Un router nunca accede al estado interno de otro router** — si necesita compartir datos, usar un port o servicio de aplicación.
+- **Los ports (ABC) se definen en aplicación** antes de que exista la implementación en infraestructura.
+- Ante la duda: si el código de test quedaría igual antes y después del refactor, el refactor respeta el contrato.
+
+### ✅ Ejemplo CORRECTO de Refactor
+
+```
+Agente: "He creado test_run_pipeline_command.py con 3 tests que validan el
+        comportamiento actual del pipeline (download→filter→score→report).
+        ¿Puedo continuar con el RunPipelineCommandHandler?"
+Usuario: "adelante"
+Agente: "He creado RunPipelineCommandHandler en application/use_cases/commands/.
+        Orquesta las 4 etapas y devuelve ComparativeReport — sin tocar presentación.
+        ¿Puedo actualizar pipeline_router.py para que lo use?"
+Usuario: "sí"
+Agente: "He actualizado pipeline_router.py: ya no importa ComparativeReport del
+        dominio ni accede a reports_router._reports directamente.
+        ¿Ejecuto los tests?"
+```
+
+### ❌ Ejemplo INCORRECTO de Refactor
+
+```
+Agente: "He refactorizado pipeline_router.py moviendo la lógica a
+        RunPipelineCommandHandler y también he añadido fetch_documents
+        al pipeline de paso. Los tests pasan. ¿Actualizo TASKS.md?"
+```
+
+**RECUERDA**: Refactor = solo mover/reorganizar. Un paso a la vez. Sin features nuevas de regalo.
+
+---
+
 ## 🧭 Filosofía de Desarrollo
 
 En w2flow seguimos los principios de:

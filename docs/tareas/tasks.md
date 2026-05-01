@@ -57,17 +57,17 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 - [x] `EXCEPCIÓN` `DuplicateTenderError`
 - [x] `IMPL` `Document` (Entity con campos `expedientId`, `docId`, `titol`, `hash`, `midaKb`, `filePath`, `type`)
 
-- [ ] `TEST` `ScoredTender` — `isGo()` delega en `score.isViable()`, `getSummary()` estructura
-- [ ] `IMPL` `ScoredTender` (Entity)
+- [x] `TEST` `ScoredTender` — `isGo()` delega en `score.isViable()`, `getSummary()` estructura
+- [x] `IMPL` `ScoredTender` (Entity)
 
-- [ ] `TEST` `ComparativeReport` — `getViableTenders()` filtra correctamente, `generateJSON()` estructura
-- [ ] `IMPL` `ComparativeReport` (Entity)
+- [x] `TEST` `ComparativeReport` — `getViableTenders()` filtra correctamente, `generateJSON()` estructura
+- [x] `IMPL` `ComparativeReport` (Entity)
 
 ### 1.4 Eventos
 
-- [ ] `IMPL` `TenderDownloadedEvent`
-- [ ] `IMPL` `EvaluationCompletedEvent`
-- [ ] `IMPL` `ProcessFailedEvent`
+- [x] `IMPL` `TenderDownloadedEvent`
+- [x] `IMPL` `EvaluationCompletedEvent`
+- [x] `IMPL` `ProcessFailedEvent`
 
 ---
 
@@ -75,45 +75,45 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 
 ### 2.1 DTOs
 
-- [ ] `TEST` `FilterConfigDTO` — conversión desde/hacia `FilterConfig`
-- [ ] `IMPL` `FilterConfigDTO`
+- [x] `TEST` `FilterConfigDTO` — conversión desde/hacia `FilterConfig`
+- [x] `IMPL` `FilterConfigDTO`
 
-- [ ] `TEST` `TenderDTO` — conversión desde/hacia `Tender`
-- [ ] `IMPL` `TenderDTO`
+- [x] `TEST` `TenderDTO` — conversión desde/hacia `Tender`
+- [x] `IMPL` `TenderDTO`
 
-- [ ] `TEST` `DocumentDTO` — conversión desde/hacia `Document`
-- [ ] `IMPL` `DocumentDTO`
+- [x] `TEST` `DocumentDTO` — conversión desde/hacia `Document`
+- [x] `IMPL` `DocumentDTO`
 
-- [ ] `TEST` `ScoreDTO` — conversión desde/hacia `Score`
-- [ ] `IMPL` `ScoreDTO`
+- [x] `TEST` `ScoreDTO` — conversión desde/hacia `Score`
+- [x] `IMPL` `ScoreDTO`
 
 ### 2.2 Ports (interfaces ABC)
 > Sin tests — son contratos, se testean a través de sus implementaciones
 
-- [ ] `IMPL` `LicitationApiPort`
-- [ ] `IMPL` `TenderRepositoryPort`
-- [ ] `IMPL` `DocumentStoragePort`
-- [ ] `IMPL` `NotificationPort`
+- [x] `IMPL` `LicitationApiPort`
+- [x] `IMPL` `TenderRepositoryPort`
+- [x] `IMPL` `DocumentStoragePort`
+- [x] `IMPL` `NotificationPort`
 
 ### 2.3 Commands
 
-- [ ] `TEST` `DownloadTendersCommandHandler` — mock de `LicitationApiPort`, descarga y filtra por fecha
-- [ ] `EXCEPCIÓN` `DownloadError`
-- [ ] `IMPL` `DownloadTendersCommandHandler`
+- [x] `TEST` `DownloadTendersCommandHandler` — mock de `LicitationApiPort`, descarga y filtra por fecha
+- [x] `EXCEPCIÓN` `DownloadError`
+- [x] `IMPL` `DownloadTendersCommandHandler`
 
-- [ ] `TEST` `FilterTendersCommandHandler` — mock de port, aplica `FilterConfig.matches()`
-- [ ] `IMPL` `FilterTendersCommandHandler`
+- [x] `TEST` `FilterTendersCommandHandler` — mock de port, aplica `FilterConfig.matches()`
+- [x] `IMPL` `FilterTendersCommandHandler`
 
-- [ ] `TEST` `ScoreTenderCommandHandler` — mock de ports, genera `ScoredTender` con score correcto
-- [ ] `IMPL` `ScoreTenderCommandHandler`
+- [x] `TEST` `ScoreTenderCommandHandler` — mock de ports, genera `ScoredTender` con score correcto
+- [x] `IMPL` `ScoreTenderCommandHandler`
 
 ### 2.4 Queries
 
-- [ ] `TEST` `GetScoredTendersQueryHandler` — mock de repositorio, devuelve lista paginada
-- [ ] `IMPL` `GetScoredTendersQueryHandler`
+- [x] `TEST` `GetScoredTendersQueryHandler` — mock de repositorio, devuelve lista paginada
+- [x] `IMPL` `GetScoredTendersQueryHandler`
 
-- [ ] `TEST` `GetComparativeReportQueryHandler` — mock de repositorio, devuelve informe por id
-- [ ] `IMPL` `GetComparativeReportQueryHandler`
+- [x] `TEST` `GetComparativeReportQueryHandler` — mock de repositorio, devuelve informe por id
+- [x] `IMPL` `GetComparativeReportQueryHandler`
 
 ---
 
@@ -121,33 +121,33 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 
 ### 3.1 Base de datos
 
-- [ ] `TEST` Modelos SQLAlchemy — mapeo correcto a tablas
-- [ ] `IMPL` `TenderModel`, `DocumentModel`, `ScoreModel`
-- [ ] `IMPL` Migraciones Alembic (creación de tablas)
+- [x] `TEST` Modelos SQLAlchemy — mapeo correcto a tablas
+- [x] `IMPL` `TenderModel`, `DocumentModel`, `ScoreModel`
+- [x] `IMPL` Migraciones Alembic (creación de tablas)
 
-- [ ] `TEST` `TenderRepository` — integración contra PostgreSQL (pytest + fixtures)
-- [ ] `IMPL` `TenderRepository` (implementa `TenderRepositoryPort`)
+- [x] `TEST` `TenderRepository` — integración contra PostgreSQL (pytest + fixtures)
+- [x] `IMPL` `TenderRepository` (implementa `TenderRepositoryPort`)
 
-- [ ] `TEST` `DocumentRepository` — integración, comprueba deduplicación (RN-06)
-- [ ] `IMPL` `DocumentRepository` (implementa `DocumentStoragePort`)
+- [x] `TEST` `DocumentRepository` — integración, comprueba deduplicación (RN-06)
+- [x] `IMPL` `DocumentRepository` (implementa `DocumentStoragePort`)
 
 ### 3.2 Cliente externo
 
-- [ ] `TEST` `RetryManager` — 2 reintentos, backoff, lanza error al tercer fallo (R-04)
-- [ ] `IMPL` `RetryManager`
+- [x] `TEST` `RetryManager` — 2 reintentos, backoff, lanza error al tercer fallo (R-04)
+- [x] `IMPL` `RetryManager`
 
-- [ ] `TEST` `ContractacioPublicaClient` — mock HTTP, paginación, autenticación
-- [ ] `IMPL` `ContractacioPublicaClient` (implementa `LicitationApiPort`)
+- [x] `TEST` `ContractacioPublicaClient` — mock HTTP, paginación, autenticación
+- [x] `IMPL` `ContractacioPublicaClient` (implementa `LicitationApiPort`)
 
-- [ ] `IMPL` `DownloadMonitor` (progreso y registro de errores)
+- [x] `IMPL` `DownloadMonitor` (progreso y registro de errores)
 
 ### 3.3 Servicios
 
-- [ ] `TEST` `NlpService` — extracción de requisitos desde documento de prueba
-- [ ] `IMPL` `NlpService` (Timbal)
+- [x] `TEST` `NlpService` — extracción de requisitos desde documento de prueba
+- [x] `IMPL` `NlpService` (Timbal)
 
-- [ ] `TEST` `EmailService` — mock SMTP, verifica llamada con contenido correcto
-- [ ] `IMPL` `EmailService` (implementa `NotificationPort`)
+- [x] `TEST` `EmailService` — mock SMTP, verifica llamada con contenido correcto
+- [x] `IMPL` `EmailService` (implementa `NotificationPort`)
 
 ---
 
@@ -155,33 +155,115 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 
 ### 4.1 Schemas Pydantic
 
-- [ ] `TEST` `FilterSchema` — validación de campos obligatorios
-- [ ] `IMPL` `FilterSchema`, `TenderSchema`, `ReportSchema`, `PipelineStatusSchema`
+- [x] `TEST` `FilterSchema` — validación de campos obligatorios
+- [x] `IMPL` `FilterSchema`, `TenderSchema`, `ReportSchema`, `PipelineStatusSchema`
 
 ### 4.2 Routers
 
-- [ ] `TEST` `pipeline_router` — `POST /pipeline/run` lanza command, `GET /pipeline/status` devuelve estado
-- [ ] `IMPL` `pipeline_router`
+- [x] `TEST` `pipeline_router` — `POST /pipeline/run` lanza command, `GET /pipeline/status` devuelve estado
+- [x] `IMPL` `pipeline_router`
 
-- [ ] `TEST` `filters_router` — `GET` devuelve config activa, `PUT` valida y actualiza
-- [ ] `IMPL` `filters_router`
+- [x] `TEST` `filters_router` — `GET` devuelve config activa, `PUT` valida y actualiza
+- [x] `IMPL` `filters_router`
 
-- [ ] `TEST` `tenders_router` — `GET /tenders` lista, `GET /tenders/{id}` detalle y 404
-- [ ] `IMPL` `tenders_router`
+- [x] `TEST` `tenders_router` — `GET /tenders` lista, `GET /tenders/{id}` detalle y 404
+- [x] `IMPL` `tenders_router`
 
-- [ ] `TEST` `reports_router` — `GET /reports` lista, `GET /reports/{id}` detalle y 404
-- [ ] `IMPL` `reports_router`
+- [x] `TEST` `reports_router` — `GET /reports` lista, `GET /reports/{id}` detalle y 404
+- [x] `IMPL` `reports_router`
 
 ### 4.3 App principal
 
-- [ ] `IMPL` `main.py` — setup FastAPI, routers, manejo de errores global
+- [x] `IMPL` `main.py` — setup FastAPI, routers, manejo de errores global
 
 ---
 
 ## Fase 5 — Validación final
 
-- [ ] Test end-to-end del pipeline completo con datos reales
-- [ ] Validar tiempo de ejecución < 1 minuto (R-03)
-- [ ] Validar deduplicación de licitaciones (RN-06)
-- [ ] Validar descarte de licitaciones expiradas (RN-05)
-- [ ] `README.md` con instrucciones de setup y ejecución
+- [x] Test end-to-end del pipeline completo con datos reales
+- [x] Validar tiempo de ejecución < 1 minuto (R-03)
+- [x] Validar deduplicación de licitaciones (RN-06)
+- [x] Validar descarte de licitaciones expiradas (RN-05)
+- [x] `README.md` con instrucciones de setup y ejecución
+
+---
+
+## Fase 6 — Integración completa del pipeline
+
+> Conectar los servicios ya implementados al flujo real de ejecución.
+
+### 6.0 REFACTOR — Extraer lógica del pipeline a `RunPipelineCommandHandler`
+
+> **Violaciones detectadas en 6.1** que deben corregirse antes de continuar:
+> 1. `pipeline_router.py` instancia `ComparativeReport` (entidad de dominio) directamente — presentación no debe crear entidades de dominio.
+> 2. `pipeline_router.py` accede a `reports_router._reports` directamente — un router no debe acceder al estado interno de otro router.
+>
+> **Solución**: Mover la orquestación completa del pipeline a `RunPipelineCommandHandler` (aplicación). El router solo llama al handler y recibe el `ComparativeReport` como resultado.
+
+- [x] `TEST` `RunPipelineCommandHandler` — mock de todos los ports, valida que orquesta download→filter→score→report y devuelve `ComparativeReport`
+- [x] `IMPL` `RunPipelineCommandHandler` en `application/use_cases/commands/` — recibe `LicitationApiPort`, `TenderRepositoryPort`, `FilterConfig`; devuelve `ComparativeReport`
+- [x] `REFACTOR` `pipeline_router.py` — sustituir la lógica interna por una llamada a `RunPipelineCommandHandler`; guardar el report en `reports_router` mediante un método público `add_report()` en vez de acceso directo a `_reports`
+- [x] `TEST` `pipeline_router` — verificar que el comportamiento observable (POST /pipeline/run → GET /reports devuelve 1 informe) se mantiene tras el refactor
+
+### 6.1 ComparativeReport tras pipeline (RF-07)
+
+- [x] `TEST` `pipeline_router` — tras completar, `GET /reports` devuelve 1 informe con los tenders puntuados
+- [x] `IMPL` `pipeline_router._run_pipeline` — crear `ComparativeReport` con los `ScoredTender` y almacenarlo en `reports_router._reports`
+
+### 6.2 Fetch de detalle para presupuesto real (RF-02)
+
+- [x] `TEST` `ContractacioPublicaClient.fetch_detail` — mock HTTP, devuelve `pressupostLicitacio` real
+- [x] `IMPL` `ContractacioPublicaClient.fetch_detail(publicacio_id)` — `GET /cerca-avancada/{id}` y retorna el item de detalle
+- [x] `TEST` `DownloadTendersCommandHandler` — cuando la API de listado devuelve `pressupostLicitacio=null`, hace fetch del detalle y usa el presupuesto real
+- [x] `IMPL` `DownloadTendersCommandHandler` — llamar a `fetch_detail` cuando `pressupostLicitacio` es `null`
+
+### 6.3 Descarga de documentos PDF + NLP (RF-04, RF-05)
+
+- [x] `TEST` `ContractacioPublicaClient.fetch_documents` — mock HTTP, devuelve lista de documentos adjuntos de una licitación
+- [x] `IMPL` `ContractacioPublicaClient.fetch_documents(expedient_id)` — endpoint de documentos adjuntos (DFS recursivo sobre `dades`)
+- [x] `TEST` `DownloadDocumentsCommandHandler` — descarga PDFs filtrados por `DocumentType`, guarda con `DocumentStoragePort`
+- [x] `IMPL` `DownloadDocumentsCommandHandler`
+- [x] `TEST` `pipeline_router` — el pipeline llama a `DownloadDocumentsCommandHandler` y pasa los textos PDF al `ScoreTenderCommandHandler`
+- [x] `IMPL` `pipeline_router._run_pipeline` — etapa de descarga de documentos antes del scoring
+
+### 6.4 Lectura de texto PDF con pymupdf + scoring real (RF-05, RF-06)
+
+> **Clean Architecture**: `PdfExtractorPort` (aplicación) se define antes que la implementación (infraestructura). `DownloadDocumentsCommandHandler` depende solo del puerto, nunca de pymupdf.
+
+- [x] `IMPL` `pymupdf` en `pyproject.toml` (nueva dependencia)
+- [x] `IMPL` `PdfExtractorPort` — puerto ABC en `application/ports/` con método `extract_text(pdf_bytes: bytes) -> str`
+- [x] `TEST` `PdfTextExtractor` — dado un fichero PDF en bytes, devuelve el texto concatenado de todas las páginas
+- [x] `IMPL` `PdfTextExtractor` — servicio en `infrastructure/services/` que implementa `PdfExtractorPort` usando `pymupdf`
+- [x] `TEST` `ScoreTenderCommandHandler` — cuando recibe `pdf_texts` no vacíos, el scoring usa el contenido del PDF además del título
+- [x] `IMPL` `ScoreTenderCommandHandler` — ya pasa `pdf_texts` al `_calculate_score`; verificar que funciona con texto real
+
+### 6.5 Agente Timbal análisis comparativo (RF-07)
+
+> **Clean Architecture**: `AnalysisPort` (aplicación) se define antes que la implementación (infraestructura). `NlpService` ya existe para extraer `Requirements` estructurados — `AnalysisService` es una responsabilidad distinta (análisis narrativo comparativo) y NO la reemplaza.
+
+- [x] `IMPL` `AnalysisPort` — puerto ABC en `application/ports/` con método `analyze(scored_tenders: list[ScoredTender], pdf_paths: list[str]) -> str`
+- [x] `TEST` `AnalysisService` — mock del agente Timbal, devuelve texto formateado dado lista de `ScoredTender` + rutas PDF
+- [x] `IMPL` `AnalysisService` — servicio en `infrastructure/services/` que implementa `AnalysisPort`; usa Timbal con `SYSTEM_PROMPT` del `tender_downloader.py`
+- [x] `TEST` `pipeline_router` — tras completar, el texto del agente se guarda en `reports_router._reports_analysis[report_id]`
+- [x] `IMPL` `pipeline_router._run_pipeline` — llamar a `AnalysisPort` tras el scoring; guardar resultado en `reports_router._reports_analysis` (separado de `ComparativeReport`)
+
+### 6.6 Configuración: pymupdf + GEMINI_API_KEY
+
+- [x] `IMPL` añadir `pymupdf>=1.24` a `pyproject.toml`
+- [x] `IMPL` añadir `gemini_api_key: str = ""` a `app/config.py`
+- [x] `IMPL` `GEMINI_API_KEY` disponible vía variable de entorno del sistema (pydantic-settings la lee automáticamente; Timbal también la usa directamente del OS env)
+
+### 6.7 LocalDocumentStorage (RF-04)
+
+- [x] `TEST` `LocalDocumentStorage` — guarda bytes PDF en disco bajo `downloads/{expedient_id}/{titol}`, devuelve la ruta
+- [x] `IMPL` `LocalDocumentStorage` — implementa `DocumentStoragePort` usando filesystem local
+- [x] `IMPL` añadir `download_dir: str = "downloads"` a `app/config.py`
+
+### 6.8 Endpoint análisis narrativo (RF-07)
+
+> **Clean Architecture**: El texto del agente NO va en `ComparativeReport` (dominio puro). Se almacena en `reports_router._reports_analysis: dict[str, str]` (estado de presentación). `ComparativeReport` no cambia.
+
+- [x] `IMPL` `reports_router` — añadir `_reports_analysis: dict[str, str] = {}` como estado del módulo
+- [x] `TEST` `reports_router` — `GET /reports/{id}/analysis` devuelve `{"analysis": "..."}` o 404 si el id no existe en `_reports_analysis`
+- [x] `IMPL` `reports_router` — añadir endpoint `GET /reports/{id}/analysis`
+- [x] `IMPL` `AnalysisSchema` — schema Pydantic `{"analysis": str}` para la respuesta (`_AnalysisResponse` inline en reports_router)

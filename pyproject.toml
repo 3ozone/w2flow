@@ -17,6 +17,8 @@ dependencies = [
     "psycopg2-binary>=2.9",
     "httpx>=0.27",
     "timbal",
+    "pymupdf>=1.24",
+    "aiosmtplib>=3.0",
 ]
 
 [project.optional-dependencies]
