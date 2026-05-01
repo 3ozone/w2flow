@@ -369,3 +369,42 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 
 - [x] `IMPL` `main.py` — registrar `ui_router` sin prefijo `/api/v1`
 - [x] Validar flujo completo: configurar filtro → ejecutar pipeline → ver tenders → descargar PDF → leer análisis Gemini
+
+---
+
+## Fase 10 — Persistencia de informes en PostgreSQL
+
+> Actualmente los informes (`ComparativeReport`) y los análisis narrativos se guardan en memoria (`_reports`, `_reports_analysis` en `reports_router.py`). Se pierden al reiniciar el servidor.
+> Objetivo: persistirlos en PostgreSQL con CRUD completo.
+
+### 10.1 Dominio — nada que cambiar
+> `ComparativeReport` ya existe como entidad. No se modifica.
+
+### 10.2 Modelos SQLAlchemy + migración Alembic
+
+- [ ] `IMPL` `ReportModel` — tabla `reports` con columnas: `id` (UUID PK), `created_at`, `tenders_json` (JSONB o TEXT serializado)
+- [ ] `IMPL` `ReportAnalysisModel` — tabla `report_analyses` con columnas: `report_id` (FK → reports.id), `analysis_text` (TEXT)
+- [ ] `IMPL` migración Alembic `create_reports_tables`
+
+### 10.3 Aplicación — Port
+
+- [ ] `IMPL` `ReportRepositoryPort` — puerto ABC en `application/ports/` con métodos:
+  - `save(report_id: str, report: ComparativeReport) -> None`
+  - `save_analysis(report_id: str, text: str) -> None`
+  - `get(report_id: str) -> ComparativeReport | None`
+  - `get_analysis(report_id: str) -> str | None`
+  - `list_all() -> list[tuple[str, ComparativeReport]]`
+  - `delete(report_id: str) -> None`
+
+### 10.4 Infraestructura — Repositorio
+
+- [ ] `TEST` `ReportRepository` — integración contra PostgreSQL: save, get, list, delete, save_analysis, get_analysis
+- [ ] `IMPL` `ReportRepository` — implementa `ReportRepositoryPort` con SQLAlchemy; serializa `ComparativeReport` a JSON
+- [ ] `IMPL` `dependencies.py` — instanciar `ReportRepository` y exponerlo
+
+### 10.5 Aplicación — Router
+
+- [ ] `TEST` `reports_router` — CRUD completo: `GET /reports`, `GET /reports/{id}`, `GET /reports/{id}/analysis`, `DELETE /reports/{id}` usando el repositorio en lugar de los dicts
+- [ ] `REFACTOR` `reports_router.py` — sustituir `_reports` y `_reports_analysis` por llamadas a `ReportRepositoryPort`
+- [ ] `REFACTOR` `pipeline_router.py` — usar `ReportRepositoryPort.save()` y `save_analysis()` en lugar de acceder a `reports_router._reports`
+- [ ] `REFACTOR` `ui_router.py` — usar `ReportRepositoryPort` para las páginas `/reports` y `/reports/{id}`

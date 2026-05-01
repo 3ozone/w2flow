@@ -6,7 +6,7 @@ Pipeline automatizado de descarga, filtrado, puntuación y análisis de licitaci
 
 Conecta con el portal de contratación pública de la Generalitat de Cataluña, descarga las últimas licitaciones publicadas, las filtra según criterios configurables, las puntúa automáticamente y genera un informe narrativo con IA (Google Gemini vía Timbal) para decidir en qué licitaciones vale la pena presentarse.
 
-**Stack:** Python 3.13 · FastAPI · SQLAlchemy 2.0 · PostgreSQL · Timbal (LLM) · pymupdf · aiosmtplib
+**Stack:** Python 3.13 · FastAPI · SQLAlchemy 2.0 · PostgreSQL · Timbal (LLM) · pymupdf · aiosmtplib · Jinja2 · HTMX · TailwindCSS
 
 ---
 
@@ -208,7 +208,7 @@ downloads/
     └── plec_clausules.pdf
 ```
 
-El índice de qué archivos corresponden a qué licitación se mantiene en memoria (`LocalDocumentStorage`). Si reinicias el servidor, los archivos siguen en disco pero el índice se pierde — el siguiente run del pipeline los vuelve a indexar.
+El índice de qué archivos corresponden a qué licitación se persiste en PostgreSQL (`DocumentRepository`). Los metadatos sobreviven a reinicios del servidor.
 
 ---
 
@@ -265,12 +265,55 @@ curl http://localhost:8089/api/v1/reports/{report_id}
 
 # Análisis narrativo IA
 curl http://localhost:8089/api/v1/reports/{report_id}/analysis
+
+# Eliminar un informe
+curl -X DELETE http://localhost:8089/api/v1/reports/{report_id}
 ```
+
+### 6. Ver documentos de una licitación
+
+```bash
+# Listar documentos
+curl http://localhost:8089/api/v1/tenders/{id}/documents
+
+# Descargar un PDF
+curl -O http://localhost:8089/api/v1/tenders/{id}/documents/{doc_id}/download
+```
+
+### 7. Eliminar una licitación
+
+```bash
+curl -X DELETE http://localhost:8089/api/v1/tenders/{id}
+```
+
+### 8. Health check
+
+```bash
+curl http://localhost:8089/api/v1/health
+```
+
+---
+
+## Interfaz web
+
+Además de la API REST, la aplicación incluye una interfaz web completa accesible en http://localhost:8089.
+
+| URL | Descripción |
+|-----|-------------|
+| `/` | Dashboard — filtro activo, botón de pipeline, estado en tiempo real |
+| `/tenders` | Tabla de licitaciones con semáforo 🟢🟡🔴 y documentos expandibles |
+| `/reports` | Lista de informes comparativos generados |
+| `/reports/{id}` | Detalle del informe + análisis narrativo de Gemini |
+| `/filters` | Formulario para configurar los filtros del pipeline |
+
+La UI utiliza **HTMX** para actualizaciones parciales sin recargar la página y **TailwindCSS** para el estilo. El estado del pipeline se actualiza automáticamente cada 2 segundos mientras está en ejecución.
 
 ---
 
 ## Endpoints disponibles
 
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | `GET` | `/api/v1/filters` | Obtiene la configuración de filtros activa |
@@ -279,9 +322,14 @@ curl http://localhost:8089/api/v1/reports/{report_id}/analysis
 | `GET` | `/api/v1/pipeline/status` | Estado del proceso: idle / running / completed / failed |
 | `GET` | `/api/v1/tenders` | Lista todas las licitaciones puntuadas |
 | `GET` | `/api/v1/tenders/{id}` | Detalle de una licitación con su score |
+| `GET` | `/api/v1/tenders/{id}/documents` | Lista los documentos (PDFs) de una licitación |
+| `GET` | `/api/v1/tenders/{id}/documents/{doc_id}/download` | Descarga un PDF |
+| `DELETE` | `/api/v1/tenders/{id}` | Elimina una licitación y sus documentos/scores en cascada |
 | `GET` | `/api/v1/reports` | Lista los informes comparativos generados |
 | `GET` | `/api/v1/reports/{id}` | Detalle de un informe con todas las licitaciones |
 | `GET` | `/api/v1/reports/{id}/analysis` | Análisis narrativo IA del informe (texto de Gemini) |
+| `DELETE` | `/api/v1/reports/{id}` | Elimina un informe |
+| `GET` | `/api/v1/health` | Health check: estado general y de la base de datos |
 
 Documentación interactiva completa (Swagger UI): http://localhost:8089/docs
 

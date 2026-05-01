@@ -6,13 +6,16 @@
     <li class="flex items-center justify-between py-2 text-sm">
       <div class="flex items-center gap-3 min-w-0">
         <span class="text-gray-400 shrink-0">
-          {% if doc.type == "plec_clausules" %}📋
-          {% elif doc.type == "plec_prescripcions" %}📐
-          {% elif doc.type == "anunci" %}📢
+          {% set dtype = doc.type.value %}
+          {% if dtype == "pcap" %}📋
+          {% elif dtype == "ppt" %}📐
+          {% elif dtype == "budget" %}💰
+          {% elif dtype == "technical_memory" %}🔬
+          {% elif dtype == "annexes" %}📎
           {% else %}📄{% endif %}
         </span>
         <span class="truncate text-gray-700 font-medium">{{ doc.titol }}</span>
-        <span class="shrink-0 text-xs text-gray-400">{{ doc.type }}</span>
+        <span class="shrink-0 text-xs text-gray-400">{{ dtype }}</span>
       </div>
       <div class="flex items-center gap-4 shrink-0 ml-4">
         <span class="text-xs text-gray-400">{{ "%.1f"|format(doc.mida_kb) }} KB</span>

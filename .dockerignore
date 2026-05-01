@@ -1,0 +1,38 @@
+# Control de versiones
+.git/
+.gitignore
+
+# Entorno virtual
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Tests y cobertura
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentación y ejemplos
+docs/
+examples/
+*.md
+!README.md
+
+# Datos locales
+downloads/
+*.env
+.env*
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/

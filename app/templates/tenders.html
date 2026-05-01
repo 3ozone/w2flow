@@ -22,13 +22,13 @@
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Semàfor</th>
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Data</th>
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Docs</th>
+          <th class="px-4 py-3 text-center font-semibold text-gray-500">Accions</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for st in tenders %}
-        {% set tid = st.tender.expedient_id %}
-        {% set tl = st.score.assign_traffic_light().value %}
-
+      {% for st in tenders %}
+      {% set tid = st.tender.expedient_id %}
+      {% set tl = st.score.assign_traffic_light().value %}
+      <tbody id="tender-{{ tid }}" class="divide-y divide-gray-100">
         <!-- Tender row -->
         <tr class="hover:bg-gray-50 cursor-pointer"
             hx-get="/partials/tenders/{{ tid }}/documents"
@@ -73,16 +73,26 @@
               📎 veure
             </button>
           </td>
+          <td class="px-4 py-3 text-center">
+            <button
+              onclick="event.stopPropagation()"
+              hx-delete="/api/v1/tenders/{{ tid }}"
+              hx-confirm="Eliminar la licitació '{{ st.tender.titol[:60] }}'? Aquesta acció no es pot desfer."
+              hx-on::after-request="if(event.detail.successful) document.getElementById('tender-{{ tid }}').remove()"
+              class="text-red-400 hover:text-red-600 text-xs" title="Eliminar">
+              🗑
+            </button>
+          </td>
         </tr>
 
         <!-- Expandable documents row (initially empty) -->
         <tr>
-          <td colspan="8" class="p-0">
+          <td colspan="9" class="p-0">
             <div id="docs-{{ tid }}"></div>
           </td>
         </tr>
-        {% endfor %}
       </tbody>
+      {% endfor %}
     </table>
   </div>
 
