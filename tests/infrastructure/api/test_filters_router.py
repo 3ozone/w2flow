@@ -4,9 +4,10 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import app.infrastructure.api.v1.routers.filters_router as router_module
+import app.infrastructure.dependencies as deps
 from app.infrastructure.api.v1.routers.filters_router import router
 from app.infrastructure.api.v1.schemas.filter_schema import FilterSchema
+from app.infrastructure.repositories.in_memory_filter_config_adapter import InMemoryFilterConfigAdapter
 
 
 @pytest.fixture
@@ -20,9 +21,10 @@ def client():
 @pytest.fixture(autouse=True)
 def reset_filter_config():
     """Restore the active filter config to None after each test."""
-    original = router_module._active_filter
+    original = deps.filter_config_port
+    deps.filter_config_port = InMemoryFilterConfigAdapter()
     yield
-    router_module._active_filter = original
+    deps.filter_config_port = original
 
 
 _VALID_PAYLOAD = {
@@ -44,13 +46,17 @@ class TestGetFilters:
 
     def test_returns_null_when_no_filter_configured(self, client):
         """GET /filters must return null when no filter has been set."""
-        router_module._active_filter = None
+        # reset_filter_config fixture already sets a fresh empty adapter
         response = client.get("/api/v1/filters")
         assert response.json() is None
 
     def test_returns_active_filter_when_configured(self, client):
         """GET /filters must return the active FilterSchema when set."""
-        router_module._active_filter = FilterSchema(**_VALID_PAYLOAD)
+        import app.infrastructure.dependencies as deps
+        from app.domain.value_objects.filter_config import FilterConfig
+        deps.filter_config_port.save(FilterConfig(
+            tipus_expedient=1, fase_vigent=0, sector_keywords=("construcció",)
+        ))
         response = client.get("/api/v1/filters")
         data = response.json()
         assert data["tipus_expedient"] == 1

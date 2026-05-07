@@ -67,13 +67,13 @@ class TestDownloadDocumentsCommandHandler:
 
     @pytest.mark.asyncio
     async def test_returns_list_of_documents(self):
-        """handle() must return a list of Document instances."""
+        """handle() must return a list of (Document, bytes|None) tuples."""
         handler, command, _, _ = self._make_handler(
             api_docs=[_make_doc_dict(titol="PCAP_exp.pdf")]
         )
         result = await handler.handle(command)
         assert isinstance(result, list)
-        assert all(isinstance(d, Document) for d in result)
+        assert all(isinstance(doc, Document) for doc, _ in result)
 
     # ------------------------------------------------------------------
     # Filtering by DocumentType
@@ -91,7 +91,7 @@ class TestDownloadDocumentsCommandHandler:
         )
         result = await handler.handle(command)
         assert len(result) == 1
-        assert result[0].doc_id == 1
+        assert result[0][0].doc_id == 1
         assert api.download_document.call_count == 1
 
     @pytest.mark.asyncio
@@ -130,7 +130,7 @@ class TestDownloadDocumentsCommandHandler:
 
         api.download_document.assert_not_called()
         assert len(result) == 1
-        assert result[0].file_path == "downloads/uuid-1/PCAP_exp.pdf"
+        assert result[0][0].file_path == "downloads/uuid-1/PCAP_exp.pdf"
 
     # ------------------------------------------------------------------
     # Persistence
@@ -162,7 +162,7 @@ class TestDownloadDocumentsCommandHandler:
         command = DownloadDocumentsCommand(tender=_make_tender())
         result = await handler.handle(command)
 
-        assert result[0].file_path == expected_path
+        assert result[0][0].file_path == expected_path
 
     # ------------------------------------------------------------------
     # Empty API response

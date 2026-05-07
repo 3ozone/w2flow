@@ -52,6 +52,12 @@ verde/amarillo/rojo).
 revisar todas las candidatas y tomar la decisión GO/NO GO de manera
 informada.
 
+8. **RF-08**: Filtrado avanzado con cuatro criterios adicionales configurables desde la interfaz:
+   - **CPV**: lista de códigos CPV exactos (ej. `45000000-7`); si está configurada, solo pasan licitaciones cuyo `cpvPrincipal` coincida.
+   - **Presupuesto máximo**: importe tope que la empresa puede avalar con su solvencia económica; licitaciones por encima se descartan.
+   - **Ubicación (NUTS)**: lista de códigos NUTS o provincias (ej. `ES511`, `ES512`); si está configurada, solo pasan licitaciones ejecutadas en esa zona.
+   - **Clasificación requerida**: lista de grupos empresariales (ej. `C`, `G`); descarta licitaciones que exijan una clasificación que la empresa no posee.
+
 ## Requesitos no funcionales
 
 1. **RNF-01**: Las descargas deben poder monitorizarse para saber si se está descargando los documentos o no.
@@ -93,6 +99,14 @@ informada.
 5. **RN-05**: Una licitación con fecha límite de presentación ya vencida en el momento de la descarga se descarta automáticamente, independientemente de su puntuación.
 
 6. **RN-06**: Si una licitación ya fue descargada y evaluada en una ejecución anterior, no se vuelve a procesar para evitar duplicados.
+
+7. **RN-07**: Si se configuran códigos CPV, solo son candidatas las licitaciones cuyo `cpvPrincipal` esté en la lista. Si la lista está vacía, no se aplica filtro CPV.
+
+8. **RN-08**: Si se configura un presupuesto máximo (> 0), se descartan las licitaciones cuyo importe supere ese tope, independientemente de su puntuación.
+
+9. **RN-09**: Si se configuran códigos NUTS, solo son candidatas las licitaciones cuyo lugar de ejecución (`llocExecucio.codiNuts`) coincida con alguno de los códigos configurados. Si la lista está vacía, no se aplica filtro geográfico.
+
+10. **RN-10**: Si se configuran grupos de clasificación empresarial, se descartan las licitaciones que exijan un grupo que no esté en la lista configurada. Si la lista está vacía, no se aplica filtro de clasificación.
 
 ## Requisitos de Datos o Integraciones
 

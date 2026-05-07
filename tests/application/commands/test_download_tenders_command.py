@@ -44,6 +44,9 @@ class TestDownloadTendersCommandHandler:
     def _make_handler(self, api_return=None, repo_save=None):
         api = AsyncMock()
         api.fetch_page.return_value = api_return if api_return is not None else []
+        api.fetch_detail = AsyncMock(return_value={
+            "publicacio": {"dadesPublicacio": {}, "dadesPublicacioLot": []}
+        })
         repository = AsyncMock()
         return DownloadTendersCommandHandler(api=api, repository=repository), api, repository
 
@@ -133,7 +136,8 @@ class TestDownloadTendersCommandHandler:
         item = _make_api_tender("uuid-null", pressupost=None)
         item["pressupostLicitacio"] = None
         handler, api, _ = self._make_handler(api_return=[item])
-        api.fetch_detail = AsyncMock(return_value={"pressupostLicitacio": 450_000.0})
+        api.fetch_detail = AsyncMock(return_value={"publicacio": {
+                                     "dadesPublicacio": {"pressupostLicitacio": 450_000.0}}})
 
         command = DownloadTendersCommand(filter_config=_make_filter_config())
         await handler.handle(command)
@@ -146,7 +150,8 @@ class TestDownloadTendersCommandHandler:
         item = _make_api_tender("uuid-null", pressupost=None)
         item["pressupostLicitacio"] = None
         handler, api, _ = self._make_handler(api_return=[item])
-        api.fetch_detail = AsyncMock(return_value={"pressupostLicitacio": 450_000.0})
+        api.fetch_detail = AsyncMock(return_value={"publicacio": {
+                                     "dadesPublicacio": {"pressupostLicitacio": 450_000.0}}})
 
         command = DownloadTendersCommand(filter_config=_make_filter_config())
         result = await handler.handle(command)
@@ -155,27 +160,90 @@ class TestDownloadTendersCommandHandler:
         assert result[0].pressupost == 450_000.0
 
     @pytest.mark.asyncio
-    async def test_does_not_fetch_detail_when_pressupost_present(self):
-        """When pressupostLicitacio has a value, fetch_detail must NOT be called."""
+    async def test_always_fetches_detail_for_optional_fields(self):
+        """fetch_detail is always called (even with pressupost present) to get CPV/termini."""
         handler, api, _ = self._make_handler(
             api_return=[_make_api_tender("uuid-ok", pressupost=300_000.0)]
         )
-        api.fetch_detail = AsyncMock()
+        api.fetch_detail = AsyncMock(return_value={
+            "publicacio": {"dadesPublicacio": {}, "dadesPublicacioLot": []}
+        })
 
         command = DownloadTendersCommand(filter_config=_make_filter_config())
         await handler.handle(command)
 
-        api.fetch_detail.assert_not_called()
+        api.fetch_detail.assert_called_once_with("uuid-ok", 42)
 
     @pytest.mark.asyncio
-    async def test_uses_zero_if_detail_also_has_null_pressupost(self):
-        """If both listing and detail have null pressupost, use 0.0 as fallback."""
+    async def test_stores_none_if_detail_also_has_null_pressupost(self):
+        """If both listing and detail have null pressupost, store None (budget unknown)."""
         item = _make_api_tender("uuid-null")
         item["pressupostLicitacio"] = None
         handler, api, _ = self._make_handler(api_return=[item])
-        api.fetch_detail = AsyncMock(return_value={"pressupostLicitacio": None})
+        api.fetch_detail = AsyncMock(
+            return_value={"publicacio": {"dadesPublicacio": {"pressupostLicitacio": None}}})
 
         command = DownloadTendersCommand(filter_config=_make_filter_config())
         result = await handler.handle(command)
 
-        assert result[0].pressupost == 0.0
+        assert result[0].pressupost is None
+
+    # ------------------------------------------------------------------
+    # Fase 11.6 — Pagination
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_fetches_multiple_pages_until_empty(self):
+        """handle() must keep fetching pages until a page returns fewer items than page_size."""
+        page0 = [_make_api_tender(f"uuid-p0-{i}", pressupost=100_000.0) for i in range(20)]
+        page1 = [_make_api_tender(f"uuid-p1-{i}", pressupost=100_000.0) for i in range(20)]
+        page2 = [_make_api_tender(f"uuid-p2-{i}", pressupost=100_000.0) for i in range(5)]
+        handler, api, _ = self._make_handler()
+        api.fetch_page.side_effect = [page0, page1, page2]
+
+        command = DownloadTendersCommand(filter_config=_make_filter_config(max_results=1000))
+        result = await handler.handle(command)
+
+        assert api.fetch_page.call_count == 3
+        assert len(result) == 45
+
+    @pytest.mark.asyncio
+    async def test_stops_at_max_results(self):
+        """handle() must not return more tenders than max_results."""
+        page0 = [_make_api_tender(f"uuid-{i}", pressupost=100_000.0) for i in range(20)]
+        page1 = [_make_api_tender(f"uuid-p1-{i}", pressupost=100_000.0) for i in range(20)]
+        handler, api, _ = self._make_handler()
+        api.fetch_page.side_effect = [page0, page1]
+
+        command = DownloadTendersCommand(filter_config=_make_filter_config(max_results=25))
+        result = await handler.handle(command)
+
+        assert len(result) <= 25
+
+    @pytest.mark.asyncio
+    async def test_passes_correct_page_number_to_api(self):
+        """handle() must pass incrementing page numbers to fetch_page."""
+        page0 = [_make_api_tender(f"uuid-{i}", pressupost=100_000.0) for i in range(20)]
+        page1 = [_make_api_tender(f"uuid-p1-{i}", pressupost=100_000.0) for i in range(3)]
+        handler, api, _ = self._make_handler()
+        api.fetch_page.side_effect = [page0, page1]
+
+        fc = _make_filter_config(max_results=1000)
+        command = DownloadTendersCommand(filter_config=fc)
+        await handler.handle(command)
+
+        calls = api.fetch_page.call_args_list
+        assert calls[0].args == (fc, 0)
+        assert calls[1].args == (fc, 1)
+
+    @pytest.mark.asyncio
+    async def test_stops_when_page_is_empty(self):
+        """handle() must stop immediately when fetch_page returns an empty list."""
+        handler, api, _ = self._make_handler()
+        api.fetch_page.side_effect = [[]]
+
+        command = DownloadTendersCommand(filter_config=_make_filter_config(max_results=1000))
+        result = await handler.handle(command)
+
+        assert api.fetch_page.call_count == 1
+        assert result == []

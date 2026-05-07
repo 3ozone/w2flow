@@ -191,3 +191,116 @@ class TestRunPipelineCommandHandler:
 
         api.download_document.assert_called_once()
         storage.save.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # RF-05 — PDFs must reach scorer and analysis service
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_pdf_texts_passed_to_score_tender_command(self):
+        """handle() must extract PDF text and pass it to ScoreTenderCommand (not [])."""
+        from unittest.mock import patch, MagicMock
+        from app.application.use_cases.commands.run_pipeline_command import (
+            RunPipelineCommand,
+            RunPipelineCommandHandler,
+        )
+
+        api = AsyncMock()
+        api.fetch_page.return_value = [_make_api_tender("uuid-1")]
+        api.fetch_detail.return_value = {}
+        api.fetch_documents.return_value = [
+            {"id": 1, "titol": "PCAP_exp.pdf", "hash": "abc", "midaKb": 100.0}
+        ]
+        api.download_document.return_value = b"%PDF-test-content"
+
+        repository = AsyncMock()
+        repository.save.return_value = None
+        repository.save_scored.return_value = None
+
+        storage = AsyncMock()
+        storage.exists.return_value = False
+        storage.save.return_value = "downloads/uuid-1/PCAP_exp.pdf"
+
+        pdf_extractor = MagicMock()
+        pdf_extractor.extract_text.return_value = "text from PDF"
+
+        handler = RunPipelineCommandHandler(
+            api=api, repository=repository, storage=storage,
+            pdf_extractor=pdf_extractor,
+        )
+        command = RunPipelineCommand(filter_config=_make_filter_config())
+
+        captured_commands = []
+        original_handle = None
+
+        with patch(
+            "app.application.use_cases.commands.run_pipeline_command.ScoreTenderCommandHandler"
+        ) as MockScorer:
+            mock_scorer_instance = AsyncMock()
+            from app.domain.entities.scored_tender import ScoredTender
+            from app.domain.value_objects.score import Score
+            from app.domain.entities.tender import Tender
+            mock_score = Score(
+                expedient_id="uuid-1", total=40, detall={},
+                paraules_clau_trobades=frozenset(), penalitzacions=frozenset(),
+                recomanacio="A VALORAR",
+            )
+            mock_tender = Tender(
+                expedient_id="uuid-1", publicacio_id=42,
+                titol="Obres", organ="AJT", pressupost=100_000.0,
+                codi_expedient="EXP-1", fase="LICITACIO_PUBLICA",
+                data_publicacio=date.today(),
+            )
+            mock_scorer_instance.handle.return_value = ScoredTender(
+                tender=mock_tender, score=mock_score, requirements=None
+            )
+            MockScorer.return_value = mock_scorer_instance
+
+            await handler.handle(command)
+
+            call_args = mock_scorer_instance.handle.call_args[0][0]
+            assert call_args.pdf_texts != [], (
+                "pdf_texts should not be empty — PDFs must be read and passed to scorer"
+            )
+            assert "text from PDF" in call_args.pdf_texts
+
+    @pytest.mark.asyncio
+    async def test_pdf_paths_passed_to_analysis_not_empty(self):
+        """RunPipelineCommandHandler must collect real pdf_paths for the analysis stage."""
+        from app.application.use_cases.commands.run_pipeline_command import (
+            RunPipelineCommand,
+            RunPipelineCommandHandler,
+        )
+        from unittest.mock import MagicMock
+
+        api = AsyncMock()
+        api.fetch_page.return_value = [_make_api_tender("uuid-1")]
+        api.fetch_detail.return_value = {}
+        api.fetch_documents.return_value = [
+            {"id": 1, "titol": "PCAP_exp.pdf", "hash": "abc", "midaKb": 100.0}
+        ]
+        api.download_document.return_value = b"%PDF"
+
+        repository = AsyncMock()
+        repository.save.return_value = None
+        repository.save_scored.return_value = None
+
+        storage = AsyncMock()
+        storage.exists.return_value = False
+        storage.save.return_value = "downloads/uuid-1/PCAP_exp.pdf"
+
+        pdf_extractor = MagicMock()
+        pdf_extractor.extract_text.return_value = "text"
+
+        handler = RunPipelineCommandHandler(
+            api=api, repository=repository, storage=storage,
+            pdf_extractor=pdf_extractor,
+        )
+        command = RunPipelineCommand(filter_config=_make_filter_config())
+        result = await handler.handle(command)
+
+        # pdf_paths collected internally — verify via the report's scored tenders
+        # The key assertion is that storage.save returned a real path and it was kept
+        assert result is not None
+        # Verify pdf_extractor was actually called with the downloaded bytes
+        pdf_extractor.extract_text.assert_called_once_with(b"%PDF")

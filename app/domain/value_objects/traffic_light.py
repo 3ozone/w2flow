@@ -5,11 +5,11 @@ from enum import Enum
 class TrafficLight(Enum):
     """Viability signal for a scored tender.
 
-    Thresholds (based on a 70-point scoring scale):
+    Thresholds (RN-03, 100-point scoring scale):
 
-    * GREEN  — total ≥ 50  → recommended
-    * YELLOW — total ≥ 25  → worth reviewing
-    * RED    — total < 25  → not recommended
+    * GREEN  — total ≥ 70  → recommended
+    * YELLOW — total ≥ 40  → worth reviewing
+    * RED    — total < 40  → not recommended
     """
 
     GREEN = "green"
@@ -21,15 +21,15 @@ class TrafficLight(Enum):
         """Return the traffic light colour for a given score total.
 
         Args:
-            total: The numeric score (0–70).
+            total: The numeric score (0–100).
 
         Returns:
-            :attr:`GREEN` if *total* ≥ 50,
-            :attr:`YELLOW` if *total* ≥ 25,
+            :attr:`GREEN` if *total* ≥ 70,
+            :attr:`YELLOW` if *total* ≥ 40,
             :attr:`RED` otherwise.
         """
-        if total >= 50:
+        if total >= 70:
             return cls.GREEN
-        if total >= 25:
+        if total >= 40:
             return cls.YELLOW
         return cls.RED

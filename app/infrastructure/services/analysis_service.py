@@ -11,7 +11,7 @@ from app.application.ports.analysis_port import AnalysisPort
 from app.domain.entities.scored_tender import ScoredTender
 
 _SYSTEM_PROMPT = """Eres un experto en licitaciones públicas catalanas trabajando para una empresa de ingeniería y construcción.
-Para cada licitación recibida, con sus documentos adjuntos, formatea así:
+Para cada licitación recibida, con sus documentos adjuntos (PCAP, PPT, memoria técnica, presupuesto y anexos), extrae y formatea la siguiente información:
 
 ---
 📋 **[Título del contrato]**
@@ -20,7 +20,7 @@ Para cada licitación recibida, con sus documentos adjuntos, formatea así:
 📅 Publicación: [fecha]
 🔖 Fase: [fase actual]
 🔗 Expediente: [código expediente]
-🎯 **Puntuación: [score.total]/70 — [score.recomanacio]**
+🎯 **Puntuación: [score.total]/100 — [score.recomanacio]**
    - Presupuesto: [score.detall.pressupost] pts
    - Sector relevante: [score.detall.sector_positiu] pts
    - Penalizaciones IT/software: [score.detall.sector_negatiu] pts
@@ -28,13 +28,25 @@ Para cada licitación recibida, con sus documentos adjuntos, formatea así:
    - Subcontratación permitida: [score.detall.subcontractació] pts
    - Palabras clave encontradas: [score.paraules_clau_trobades]
 
-📁 Documentos:
+📄 **Extracción NLP de documentos** (RF-05):
+  🔐 Solvencia requerida:
+    → [Requisitos de solvencia económica, financiera y técnica extraídos del PCAP/PPT]
+  🏆 Criterios de adjudicación:
+    → [Lista de criterios con su ponderación: precio, calidad, plazo, etc.]
+  💶 Partidas principales del presupuesto:
+    → [Capítulos o partidas más relevantes del presupuesto base o memoria]
+  ⚠️ Condiciones especiales de ejecución:
+    → [Cláusulas sociales, medioambientales o de innovación obligatorias]
+  📌 Cláusulas atípicas o de riesgo:
+    → [Cualquier cláusula inusual, penalizaciones severas o condiciones restrictivas]
+
+📁 Documentos adjuntos:
   - [nombre] ([tamaño KB])
-    → Resumen breve del contenido del documento
+    → Resumen del contenido del documento
 
 ---
 
-Al final, ordena las licitaciones por puntuación (mayor a menor) y añade un resumen ejecutivo de cuáles son más interesantes para una empresa de ingeniería/construcción."""
+Al final, ordena las licitaciones por puntuación (mayor a menor) y añade un resumen ejecutivo indicando cuáles son más interesantes para una empresa de ingeniería/construcción, destacando las que presenten mejor relación puntuación/riesgo."""
 
 
 def _build_prompt(scored_tenders: list[ScoredTender], pdf_paths: list[str]) -> str:

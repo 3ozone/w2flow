@@ -47,4 +47,12 @@
   {% if state == "failed" and error %}
   <p class="mt-3 text-sm text-red-600 font-mono bg-red-50 rounded p-2">{{ error }}</p>
   {% endif %}
+
+  {% if state == "completed" %}
+  <!-- Trigger loading results into #search-results once pipeline completes -->
+  <div hx-get="/partials/search-results"
+       hx-trigger="load"
+       hx-target="#search-results"
+       hx-swap="innerHTML"></div>
+  {% endif %}
 </div>

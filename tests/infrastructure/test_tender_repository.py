@@ -24,11 +24,17 @@ def engine():
 
 @pytest.fixture
 def session(engine):
-    """Transactional session rolled back after each test — no dirty data."""
+    """Provide a clean session: purge rows before yielding, purge after."""
     with Session(engine) as sess:
-        sess.begin()
+        sess.execute(text("DELETE FROM documents"))
+        sess.execute(text("DELETE FROM scores"))
+        sess.execute(text("DELETE FROM tenders"))
+        sess.commit()
         yield sess
-        sess.rollback()
+        sess.execute(text("DELETE FROM documents"))
+        sess.execute(text("DELETE FROM scores"))
+        sess.execute(text("DELETE FROM tenders"))
+        sess.commit()
 
 
 @pytest.fixture

@@ -51,7 +51,7 @@ class TestComparativeReport:
         if scored_tenders is None:
             scored_tenders = [
                 self._make_scored_tender("uuid-go-1", total=60),
-                self._make_scored_tender("uuid-go-2", total=30),
+                self._make_scored_tender("uuid-go-2", total=45),
                 self._make_scored_tender("uuid-no-go", total=10),
             ]
         return ComparativeReport(

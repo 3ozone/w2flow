@@ -14,14 +14,68 @@
   <!-- Navbar -->
   <nav class="bg-indigo-700 text-white shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {% set path = request.url.path %}
       <div class="flex items-center justify-between h-14">
         <a href="/" class="text-xl font-bold tracking-tight">w2flow</a>
-        <div class="flex gap-6 text-sm font-medium">
-          <a href="/" class="hover:text-indigo-200 transition-colors">Dashboard</a>
-          <a href="/tenders" class="hover:text-indigo-200 transition-colors">Licitacions</a>
-          <a href="/reports" class="hover:text-indigo-200 transition-colors">Informes</a>
-          <a href="/filters" class="hover:text-indigo-200 transition-colors">Filtres</a>
+
+        <!-- Desktop nav -->
+        <div class="hidden sm:flex gap-1 text-sm font-medium">
+          <a href="/"
+             class="px-3 py-1.5 rounded-md transition-colors
+               {% if path == '/' %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
+            Cerca
+          </a>
+          <a href="/licitaciones"
+             class="px-3 py-1.5 rounded-md transition-colors
+               {% if path == '/licitaciones' %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
+            Licitacions
+          </a>
+          <a href="/reports"
+             class="px-3 py-1.5 rounded-md transition-colors
+               {% if path.startswith('/reports') %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
+            Historial
+          </a>
+          <a href="/filters"
+             class="px-3 py-1.5 rounded-md transition-colors
+               {% if path.startswith('/filters') %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
+            Configuració
+          </a>
         </div>
+
+        <!-- Hamburger button (mobile only) -->
+        <button class="sm:hidden p-2 rounded-md hover:bg-indigo-600 transition-colors"
+                onclick="document.getElementById('nav-mobile').classList.toggle('hidden')"
+                aria-label="Obrir menú">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile dropdown menu -->
+    <div id="nav-mobile" class="sm:hidden hidden bg-indigo-800 border-t border-indigo-600">
+      <div class="max-w-7xl mx-auto px-4 py-2 flex flex-col gap-1">
+        <a href="/"
+           class="px-3 py-2 rounded-md text-sm font-medium transition-colors
+             {% if path == '/' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
+          Cerca
+        </a>
+        <a href="/licitaciones"
+           class="px-3 py-2 rounded-md text-sm font-medium transition-colors
+             {% if path == '/licitaciones' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
+          Licitacions
+        </a>
+        <a href="/reports"
+           class="px-3 py-2 rounded-md text-sm font-medium transition-colors
+             {% if path.startswith('/reports') %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
+          Historial
+        </a>
+        <a href="/filters"
+           class="px-3 py-2 rounded-md text-sm font-medium transition-colors
+             {% if path.startswith('/filters') %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
+          Configuració
+        </a>
       </div>
     </div>
   </nav>

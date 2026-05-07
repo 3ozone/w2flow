@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.infrastructure.repositories.document_repository import DocumentRepository
+from app.infrastructure.repositories.in_memory_filter_config_adapter import InMemoryFilterConfigAdapter
+from app.infrastructure.repositories.in_memory_pipeline_status_adapter import InMemoryPipelineStatusAdapter
 from app.infrastructure.repositories.tender_repository import TenderRepository
 from app.infrastructure.services.contractacio_publica_client import (
     ContractacioPublicaClient,
@@ -30,3 +32,6 @@ document_storage: DocumentRepository | None = (
     DocumentRepository(session=_session, base_dir=settings.download_dir)
     if _session else None
 )
+
+filter_config_port = InMemoryFilterConfigAdapter()
+pipeline_status_port = InMemoryPipelineStatusAdapter()

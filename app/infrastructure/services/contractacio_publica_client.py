@@ -36,7 +36,7 @@ class ContractacioPublicaClient(LicitationApiPort):
             "tipusExpedient": filter_config.tipus_expedient,
             "faseVigent": filter_config.fase_vigent,
             "page": page,
-            "size": 20,
+            "size": filter_config.max_results,
             "sortField": "dataUltimaPublicacio",
             "sortOrder": "desc",
         }

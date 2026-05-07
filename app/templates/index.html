@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Cerca{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
+<div class="space-y-6 max-w-7xl">
 
-  <!-- Header row: title + health badge -->
+  <!-- Header row -->
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+    <h1 class="text-2xl font-bold text-gray-900">Cerca de licitacions</h1>
     <span id="health-badge"
       hx-get="/partials/health"
       hx-trigger="load, every 30s"
@@ -14,51 +14,159 @@
       class="text-sm text-gray-400">Comprovant…</span>
   </div>
 
-  <!-- Active filter card -->
-  <div class="rounded-xl border bg-white shadow-sm p-6">
-    <h2 class="text-base font-semibold text-gray-700 mb-3">Filtre actiu</h2>
-    {% if filter %}
-    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-8 gap-y-2 text-sm">
+  <!-- Search form -->
+  <form id="search-form" class="rounded-xl border bg-white shadow-sm p-6 space-y-5">
+
+    <input type="hidden" name="tipus_expedient" value="1" />
+    <input type="hidden" name="fase_vigent" value="0" />
+
+    <!-- sector_keywords -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Paraules clau del sector
+      </label>
+      <input type="text" name="sector_keywords_raw"
+             value="{{ filter.sector_keywords | join(', ') if filter else '' }}"
+             placeholder="pavimentació, xarxa, -neteja"
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      <p class="mt-1 text-xs text-gray-400">
+        Separa per comes. Prefix <code>-</code> exclou directament la licitació.
+      </p>
+    </div>
+
+    <!-- max_results + min_pressupost -->
+    <div class="grid grid-cols-2 gap-4">
       <div>
-        <dt class="text-gray-400">Tipus expedient</dt>
-        <dd class="font-medium">{{ filter.tipus_expedient }}</dd>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Màx. resultats</label>
+        <input type="number" name="max_results" min="1"
+               value="{{ filter.max_results if filter else 20 }}"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
       </div>
       <div>
-        <dt class="text-gray-400">Fase vigent</dt>
-        <dd class="font-medium">{{ filter.fase_vigent }}</dd>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Pressupost mínim (€)</label>
+        <input type="number" name="min_pressupost" min="0" step="1000"
+               value="{{ filter.min_pressupost if filter else 0 }}"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
       </div>
-      <div>
-        <dt class="text-gray-400">Pressupost mínim</dt>
-        <dd class="font-medium">{% if filter.min_pressupost %}{{ filter.min_pressupost | int }} €{% else %}—{% endif %}</dd>
+    </div>
+
+    <!-- Filtres avançats (collapsed) -->
+    <details class="text-sm">
+      <summary class="cursor-pointer text-indigo-600 hover:underline select-none">Filtres avançats</summary>
+      <div class="mt-3 space-y-4 pl-1">
+
+        <!-- max_pressupost -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Pressupost màxim (€) <span class="text-xs text-gray-400 font-normal">— 0 = sense límit</span>
+          </label>
+          <input type="number" name="max_pressupost" min="0" step="1000"
+                 value="{{ filter.max_pressupost if filter else 0 }}"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        </div>
+
+        <!-- cpv_codes -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Codis CPV <span class="text-xs text-gray-400 font-normal">— buit = sense filtre</span>
+          </label>
+          <input type="text" name="cpv_codes_raw"
+                 value="{{ filter.cpv_codes | join(', ') if filter else '' }}"
+                 placeholder="45000000-7, 71000000-8"
+                 class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+        </div>
+
+        <!-- exclude_alerta_futura -->
+        <div class="flex items-center gap-3">
+          <input type="checkbox" name="exclude_alerta_futura" id="exclude_alerta_futura"
+                 {% if filter is none or filter.exclude_alerta_futura %}checked{% endif %}
+                 class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400" />
+          <label for="exclude_alerta_futura" class="text-sm font-medium text-gray-700">
+            Excloure <span class="font-mono text-xs bg-gray-100 px-1 rounded">ALERTA_FUTURA</span>
+          </label>
+        </div>
       </div>
-      <div>
-        <dt class="text-gray-400">Keywords</dt>
-        <dd class="font-medium">{{ filter.sector_keywords | join(", ") or "—" }}</dd>
-      </div>
-    </dl>
-    <a href="/filters" class="mt-4 inline-block text-sm text-indigo-600 hover:underline">Editar filtre →</a>
-    {% else %}
-    <p class="text-sm text-gray-500">Cap filtre configurat. <a href="/filters" class="text-indigo-600 hover:underline">Configura'n un</a> abans d'executar el pipeline.</p>
-    {% endif %}
+    </details>
+
+    <!-- Submit -->
+    <div id="search-feedback"></div>
+    <div class="flex items-center gap-4 pt-1">
+      <button type="submit"
+              class="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+        🔍 Cercar
+      </button>
+      <span id="search-spinner" class="hidden text-sm text-gray-400 animate-pulse">Executant pipeline…</span>
+    </div>
+  </form>
+
+  <!-- Pipeline status (updated after search) -->
+  <div id="pipeline-status-wrapper">
+    {% include "partials/pipeline_status.html" %}
   </div>
 
-  <!-- Run pipeline button -->
-  <div class="flex items-center gap-4">
-    <button
-      hx-post="/api/v1/pipeline/run"
-      hx-swap="none"
-      hx-on::after-request="htmx.ajax('GET', '/partials/pipeline-status', {target:'#pipeline-status', swap:'outerHTML'})"
-      {% if not filter %}disabled{% endif %}
-      class="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-      ▶ Executar Pipeline
-    </button>
-    {% if not filter %}
-    <span class="text-sm text-gray-400">Cal configurar un filtre primer.</span>
-    {% endif %}
-  </div>
-
-  <!-- Pipeline status (polled when running) -->
-  {% include "partials/pipeline_status.html" %}
+  <!-- Results placeholder (populated by 15.3) -->
+  <div id="search-results"></div>
 
 </div>
+
+<script>
+  document.getElementById('search-form').addEventListener('submit', async function(evt) {
+    evt.preventDefault();
+
+    const keywords = (document.querySelector('[name=sector_keywords_raw]').value || '')
+      .split(',').map(s => s.trim()).filter(s => s.length > 0);
+    const cpvCodes = (document.querySelector('[name=cpv_codes_raw]').value || '')
+      .split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+    const payload = {
+      tipus_expedient: parseInt(document.querySelector('[name=tipus_expedient]').value, 10),
+      fase_vigent:     parseInt(document.querySelector('[name=fase_vigent]').value, 10),
+      max_results:     parseInt(document.querySelector('[name=max_results]').value, 10) || 20,
+      min_pressupost:  parseFloat(document.querySelector('[name=min_pressupost]').value) || 0,
+      max_pressupost:  parseFloat(document.querySelector('[name=max_pressupost]').value) || 0,
+      sector_keywords: keywords,
+      cpv_codes:       cpvCodes,
+      exclude_alerta_futura: document.getElementById('exclude_alerta_futura').checked,
+    };
+
+    const feedback = document.getElementById('search-feedback');
+    const spinner  = document.getElementById('search-spinner');
+    feedback.innerHTML = '';
+    spinner.classList.remove('hidden');
+
+    try {
+      // 1. Save filter
+      const saveResp = await fetch('/api/v1/filters', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!saveResp.ok) {
+        const err = await saveResp.text();
+        feedback.innerHTML = '<div class="rounded-md bg-red-50 border border-red-300 p-3 text-sm text-red-800">❌ Error desant el filtre: ' + err + '</div>';
+        spinner.classList.add('hidden');
+        return;
+      }
+
+      // 2. Run pipeline
+      const runResp = await fetch('/api/v1/pipeline/run', { method: 'POST' });
+      if (!runResp.ok) {
+        const err = await runResp.text();
+        feedback.innerHTML = '<div class="rounded-md bg-red-50 border border-red-300 p-3 text-sm text-red-800">❌ Error iniciant el pipeline: ' + err + '</div>';
+        spinner.classList.add('hidden');
+        return;
+      }
+
+      // 3. Start polling pipeline status
+      spinner.classList.add('hidden');
+      htmx.ajax('GET', '/partials/pipeline-status', {
+        target: '#pipeline-status',
+        swap: 'outerHTML',
+      });
+    } catch(e) {
+      feedback.innerHTML = '<div class="rounded-md bg-red-50 border border-red-300 p-3 text-sm text-red-800">❌ Error de connexió.</div>';
+      spinner.classList.add('hidden');
+    }
+  });
+</script>
 {% endblock %}

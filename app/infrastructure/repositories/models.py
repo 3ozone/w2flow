@@ -21,10 +21,13 @@ class TenderModel(Base):
     publicacio_id: Mapped[int] = mapped_column(Integer, nullable=False)
     titol: Mapped[str] = mapped_column(String, nullable=False)
     organ: Mapped[str] = mapped_column(String, nullable=False)
-    pressupost: Mapped[float] = mapped_column(Float, nullable=False)
+    pressupost: Mapped[float | None] = mapped_column(Float, nullable=True)
     codi_expedient: Mapped[str] = mapped_column(String, nullable=False)
     fase: Mapped[str] = mapped_column(String, nullable=False)
     data_publicacio: Mapped[date] = mapped_column(Date, nullable=False)
+    codi_cpv: Mapped[str | None] = mapped_column(String, nullable=True)
+    termini_execucio: Mapped[str | None] = mapped_column(String, nullable=True)
+    data_limit_presentacio: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ScoreModel(Base):

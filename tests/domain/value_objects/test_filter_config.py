@@ -80,6 +80,136 @@ class TestFilterConfig:
         assert config.matches(tender) is False
 
     # ------------------------------------------------------------------
+    # matches() — sector_keywords (RF-03)
+    # ------------------------------------------------------------------
+
+    def test_matches_returns_true_with_positive_keyword_in_titol(self):
+        """matches() must return True when tender titol contains a positive sector keyword."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            sector_keywords=("construcció",),
+        )
+        tender = {"pressupost": 100_000,
+                  "titol": "Obres de construcció del carrer"}
+        assert config.matches(tender) is True
+
+    def test_matches_returns_true_without_keyword_in_titol(self):
+        """matches() must return True even when titol has no keyword — keywords are bonus, not mandatory."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            sector_keywords=("construcció",),
+        )
+        tender = {"pressupost": 100_000,
+                  "titol": "Servei de neteja d'oficines"}
+        assert config.matches(tender) is True
+
+    def test_matches_returns_false_with_negative_keyword_in_titol(self):
+        """matches() must discard a tender whose titol contains a negative keyword (prefixed with -)."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            sector_keywords=("-software", "-saas"),
+        )
+        tender = {"pressupost": 100_000, "titol": "Plataforma de software ERP"}
+        assert config.matches(tender) is False
+
+    def test_matches_returns_true_when_no_sector_keywords_configured(self):
+        """matches() must pass all tenders when sector_keywords is empty."""
+        config = FilterConfig(tipus_expedient=1, fase_vigent=0)
+        tender = {"pressupost": 100_000, "titol": "Qualsevol licitació"}
+        assert config.matches(tender) is True
+
+    # ------------------------------------------------------------------
+    # matches() — cpv_codes (Fase 12.1, RN-07)
+    # ------------------------------------------------------------------
+
+    def test_matches_passes_when_cpv_codes_empty(self):
+        """matches() must pass any tender when cpv_codes is empty (no CPV filter)."""
+        config = FilterConfig(tipus_expedient=1, fase_vigent=0)
+        tender = {"pressupost": 100_000, "codi_cpv": "45000000-7"}
+        assert config.matches(tender) is True
+
+    def test_matches_passes_when_cpv_in_list(self):
+        """matches() must pass a tender whose codi_cpv is in cpv_codes."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            cpv_codes=("45000000-7", "71000000-8"),
+        )
+        tender = {"pressupost": 100_000, "codi_cpv": "45000000-7"}
+        assert config.matches(tender) is True
+
+    def test_matches_discards_when_cpv_not_in_list(self):
+        """matches() must discard a tender whose codi_cpv is not in cpv_codes."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            cpv_codes=("45000000-7",),
+        )
+        tender = {"pressupost": 100_000, "codi_cpv": "72000000-5"}
+        assert config.matches(tender) is False
+
+    def test_matches_discards_when_cpv_is_none_and_filter_active(self):
+        """matches() must discard a tender with no CPV when cpv_codes filter is active."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            cpv_codes=("45000000-7",),
+        )
+        tender = {"pressupost": 100_000, "codi_cpv": None}
+        assert config.matches(tender) is False
+
+    def test_matches_passes_when_cpv_is_none_and_no_filter(self):
+        """matches() must pass a tender with no CPV when cpv_codes is empty."""
+        config = FilterConfig(tipus_expedient=1, fase_vigent=0)
+        tender = {"pressupost": 100_000, "codi_cpv": None}
+        assert config.matches(tender) is True
+
+    # ------------------------------------------------------------------
+    # matches() — max_pressupost (Fase 12.2, RN-08)
+    # ------------------------------------------------------------------
+
+    def test_matches_passes_when_max_pressupost_is_zero(self):
+        """matches() must pass any tender when max_pressupost is 0 (no upper limit)."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, max_pressupost=0.0)
+        tender = {"pressupost": 99_000_000}
+        assert config.matches(tender) is True
+
+    def test_matches_passes_when_pressupost_below_max(self):
+        """matches() must pass a tender whose pressupost is below max_pressupost."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, max_pressupost=500_000.0)
+        tender = {"pressupost": 400_000}
+        assert config.matches(tender) is True
+
+    def test_matches_passes_when_pressupost_equals_max(self):
+        """matches() must pass a tender whose pressupost equals max_pressupost (inclusive)."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, max_pressupost=500_000.0)
+        tender = {"pressupost": 500_000}
+        assert config.matches(tender) is True
+
+    def test_matches_discards_when_pressupost_exceeds_max(self):
+        """matches() must discard a tender whose pressupost exceeds max_pressupost."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, max_pressupost=500_000.0)
+        tender = {"pressupost": 600_000}
+        assert config.matches(tender) is False
+
+    def test_matches_passes_when_pressupost_none_and_max_active(self):
+        """matches() must pass a tender with pressupost=None when max_pressupost is set (no data = no discard)."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, max_pressupost=500_000.0)
+        tender = {"pressupost": None}
+        assert config.matches(tender) is True
+
+    def test_matches_returns_true_when_negative_keyword_not_present(self):
+        """matches() must pass a tender that does NOT contain the negative keyword."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0,
+            sector_keywords=("-software",),
+        )
+        tender = {"pressupost": 100_000, "titol": "Obres de rehabilitació"}
+        assert config.matches(tender) is True
+
+    # ------------------------------------------------------------------
     # Equality (frozen dataclass)
     # ------------------------------------------------------------------
 
@@ -123,3 +253,33 @@ class TestFilterConfig:
         """FilterValidationError must be raised when max_results <= 0."""
         with pytest.raises(FilterValidationError):
             FilterConfig(tipus_expedient=1, fase_vigent=0, max_results=0)
+
+    # ------------------------------------------------------------------
+    # exclude_alerta_futura
+    # ------------------------------------------------------------------
+
+    def test_matches_discards_alerta_futura_when_excluded(self):
+        """matches() must return False for ALERTA_FUTURA when exclude_alerta_futura=True."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, exclude_alerta_futura=True)
+        assert config.matches(
+            {"pressupost": 100_000, "fase": "ALERTA_FUTURA"}) is False
+
+    def test_matches_accepts_alerta_futura_when_not_excluded(self):
+        """matches() must return True for ALERTA_FUTURA when exclude_alerta_futura=False."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, exclude_alerta_futura=False)
+        assert config.matches(
+            {"pressupost": 100_000, "fase": "ALERTA_FUTURA"}) is True
+
+    def test_matches_accepts_anunci_licitacio_when_excluded(self):
+        """matches() must return True for ANUNCI_LICITACIO regardless of exclude_alerta_futura."""
+        config = FilterConfig(
+            tipus_expedient=1, fase_vigent=0, exclude_alerta_futura=True)
+        assert config.matches(
+            {"pressupost": 100_000, "fase": "ANUNCI_LICITACIO"}) is True
+
+    def test_exclude_alerta_futura_defaults_to_true(self):
+        """exclude_alerta_futura must default to True."""
+        config = FilterConfig(tipus_expedient=1, fase_vigent=0)
+        assert config.exclude_alerta_futura is True

@@ -48,14 +48,14 @@ class TestScoredTender:
         st = self._make_scored_tender(total=55)
         assert st.is_go() is True
 
-    def test_is_go_returns_true_at_boundary_25(self):
-        """is_go() must return True when score.total == 25."""
-        st = self._make_scored_tender(total=25)
+    def test_is_go_returns_true_at_boundary_40(self):
+        """is_go() must return True when score.total == 40 (YELLOW threshold, RN-03)."""
+        st = self._make_scored_tender(total=40)
         assert st.is_go() is True
 
     def test_is_go_returns_false_when_score_is_not_viable(self):
-        """is_go() must return False when score.total < 25."""
-        st = self._make_scored_tender(total=10)
+        """is_go() must return False when score.total < 40."""
+        st = self._make_scored_tender(total=39)
         assert st.is_go() is False
 
     def test_is_go_delegates_to_score_is_viable(self):

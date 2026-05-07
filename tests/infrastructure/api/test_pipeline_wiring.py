@@ -62,28 +62,33 @@ def _make_scored_tender(expedient_id: str = "uuid-1") -> ScoredTender:
 
 @pytest.fixture(autouse=True)
 def reset_state():
-    """Reset module-level state before each test."""
-    original_state = pipeline_module._pipeline_state
-    original_status = pipeline_module._pipeline_status
-    original_filter = filters_module._active_filter
+    """Reset pipeline and filter state before each test."""
+    import app.infrastructure.dependencies as deps
+    from app.infrastructure.repositories.in_memory_filter_config_adapter import InMemoryFilterConfigAdapter
+    from app.infrastructure.repositories.in_memory_pipeline_status_adapter import InMemoryPipelineStatusAdapter
+    original_filter_port = deps.filter_config_port
+    original_status_port = deps.pipeline_status_port
+    deps.filter_config_port = InMemoryFilterConfigAdapter()
+    deps.pipeline_status_port = InMemoryPipelineStatusAdapter()
     yield
-    pipeline_module._pipeline_state = original_state
-    pipeline_module._pipeline_status = original_status
-    filters_module._active_filter = original_filter
+    deps.filter_config_port = original_filter_port
+    deps.pipeline_status_port = original_status_port
 
 
 @pytest.fixture
 def active_filter():
-    """Set an active filter in filters_router."""
-    fs = FilterSchema(
+    """Set an active filter via filter_config_port."""
+    import app.infrastructure.dependencies as deps
+    from app.domain.value_objects.filter_config import FilterConfig
+    fc = FilterConfig(
         tipus_expedient=1,
         fase_vigent=0,
         max_results=20,
-        sector_keywords=["obres"],
+        sector_keywords=("obres",),
         min_pressupost=0.0,
     )
-    filters_module._active_filter = fs
-    return fs
+    deps.filter_config_port.save(fc)
+    return fc
 
 
 @pytest.fixture
@@ -132,6 +137,8 @@ class TestPipelineWiring:
     @pytest.mark.asyncio
     async def test_pipeline_sets_completed_state_on_success(self, active_filter):
         """_run_pipeline must set state to COMPLETED after successful run."""
+        import app.infrastructure.dependencies as deps
+        from app.application.dtos.pipeline_status_dto import PipelineStateEnum
         with (
             patch("app.infrastructure.api.v1.routers.pipeline_router.RunPipelineCommandHandler") as MockHandler,
             patch("app.infrastructure.api.v1.routers.pipeline_router._build_dependencies") as mock_deps,
@@ -142,11 +149,13 @@ class TestPipelineWiring:
 
             await pipeline_module._run_pipeline()
 
-            assert pipeline_module._pipeline_state == PipelineState.COMPLETED
+            assert deps.pipeline_status_port.get().state == PipelineStateEnum.COMPLETED
 
     @pytest.mark.asyncio
     async def test_pipeline_sets_failed_state_on_error(self, active_filter):
         """_run_pipeline must set state to FAILED if an exception is raised."""
+        import app.infrastructure.dependencies as deps
+        from app.application.dtos.pipeline_status_dto import PipelineStateEnum
         with (
             patch("app.infrastructure.api.v1.routers.pipeline_router._build_dependencies") as mock_deps,
         ):
@@ -154,18 +163,20 @@ class TestPipelineWiring:
 
             await pipeline_module._run_pipeline()
 
-            assert pipeline_module._pipeline_state == PipelineState.FAILED
-            assert "DB unavailable" in pipeline_module._pipeline_status.error
+            assert deps.pipeline_status_port.get().state == PipelineStateEnum.FAILED
+            assert "DB unavailable" in deps.pipeline_status_port.get().error
 
     @pytest.mark.asyncio
     async def test_pipeline_without_active_filter_sets_failed(self):
         """_run_pipeline must set FAILED state if no filter is configured."""
-        filters_module._active_filter = None
+        import app.infrastructure.dependencies as deps
+        from app.application.dtos.pipeline_status_dto import PipelineStateEnum
+        # reset_state fixture already sets an empty adapter (no filter saved)
 
         await pipeline_module._run_pipeline()
 
-        assert pipeline_module._pipeline_state == PipelineState.FAILED
-        assert pipeline_module._pipeline_status.error is not None
+        assert deps.pipeline_status_port.get().state == PipelineStateEnum.FAILED
+        assert deps.pipeline_status_port.get().error is not None
 
     @pytest.mark.asyncio
     async def test_pipeline_stores_report_in_reports_router(self, active_filter):

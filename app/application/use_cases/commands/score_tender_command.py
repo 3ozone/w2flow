@@ -51,29 +51,30 @@ class ScoreTenderCommandHandler:
     def _calculate_score(self, tender: Tender, pdf_texts: list[str]) -> Score:
         text = tender.titol.lower() + " " + " ".join(pdf_texts).lower()
 
-        # Pressupost (0–25 pts)
-        if tender.pressupost >= 1_000_000:
+        # Pressupost (5–30 pts); None = budget not published → 0 pts
+        pressupost = tender.pressupost or 0.0
+        if pressupost >= 1_000_000:
+            pts_pressupost = 30
+        elif pressupost >= 500_000:
             pts_pressupost = 25
-        elif tender.pressupost >= 500_000:
-            pts_pressupost = 20
-        elif tender.pressupost >= 100_000:
-            pts_pressupost = 10
+        elif pressupost >= 100_000:
+            pts_pressupost = 15
         else:
             pts_pressupost = 5
 
-        # Sector positiu (+5 per keyword, max 30)
+        # Sector positiu (+5 per keyword, max 40)
         hits_pos = tuple(kw for kw in _SECTOR_POSITIU if kw in text)
-        pts_sector_pos = min(len(hits_pos) * 5, 30)
+        pts_sector_pos = min(len(hits_pos) * 5, 40)
 
         # Sector negatiu (-10 per keyword)
         hits_neg = tuple(kw for kw in _SECTOR_NEGATIU if kw in text)
         pts_sector_neg = len(hits_neg) * -10
 
-        # Procediment obert (+10)
-        pts_procediment = 10 if "procediment obert" in text else 0
+        # Procediment obert (+20)
+        pts_procediment = 20 if "procediment obert" in text else 0
 
-        # Subcontractació (+5)
-        pts_subcontract = 5 if "subcontract" in text else 0
+        # Subcontractació (+10)
+        pts_subcontract = 10 if "subcontract" in text else 0
 
         total = max(
             0,
@@ -81,9 +82,9 @@ class ScoreTenderCommandHandler:
             + pts_procediment + pts_subcontract,
         )
 
-        if total >= 50:
+        if total >= 70:
             recomanacio = "RECOMANADA"
-        elif total >= 25:
+        elif total >= 40:
             recomanacio = "A VALORAR"
         else:
             recomanacio = "NO RECOMANADA"

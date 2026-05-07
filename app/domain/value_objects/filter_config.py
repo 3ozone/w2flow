@@ -19,6 +19,7 @@ class FilterConfig:
         max_results: Maximum number of tenders to process per run.
         sector_keywords: Additional sector keywords for post-API filtering.
         min_pressupost: Minimum budget threshold (0 = no limit).
+        exclude_alerta_futura: If True, discard tenders in ALERTA_FUTURA phase.
 
     Raises:
         FilterValidationError: If any parameter value is out of range.
@@ -29,6 +30,9 @@ class FilterConfig:
     max_results: int = 20
     sector_keywords: tuple[str, ...] = field(default_factory=tuple)
     min_pressupost: float = 0.0
+    exclude_alerta_futura: bool = True
+    cpv_codes: tuple[str, ...] = field(default_factory=tuple)
+    max_pressupost: float = 0.0
 
     def __post_init__(self) -> None:
         if self.tipus_expedient < 0:
@@ -63,16 +67,40 @@ class FilterConfig:
     def matches(self, tender: dict) -> bool:
         """Return True if *tender* satisfies the additional filter criteria.
 
-        Currently checks that ``tender["pressupost"]`` is not None and is
-        greater than or equal to :attr:`min_pressupost`.
+        Checks:
+        1. ``tender["pressupost"]`` >= :attr:`min_pressupost`.
+        2. ``tender["titol"]`` does not contain any negative keyword (prefixed with ``-``).
+           Positive keywords (no prefix) are used for scoring only — they do not exclude.
 
         Args:
-            tender: A tender dict as returned by the API (must contain ``pressupost``).
+            tender: A tender dict as returned by the API.
 
         Returns:
             ``True`` if the tender passes all criteria, ``False`` otherwise.
         """
+        if self.exclude_alerta_futura and tender.get("fase") == "ALERTA_FUTURA":
+            return False
+
         pressupost = tender.get("pressupost")
         if pressupost is None:
-            return self.min_pressupost == 0
-        return float(pressupost) >= self.min_pressupost
+            if self.min_pressupost > 0:
+                return False
+        elif float(pressupost) < self.min_pressupost:
+            return False
+
+        if self.max_pressupost > 0 and pressupost is not None:
+            if float(pressupost) > self.max_pressupost:
+                return False
+
+        if self.cpv_codes:
+            codi_cpv = tender.get("codi_cpv")
+            if codi_cpv not in self.cpv_codes:
+                return False
+
+        titol = (tender.get("titol") or "").lower()
+        for kw in self.sector_keywords:
+            if kw.startswith("-"):
+                if kw[1:].lower() in titol:
+                    return False
+
+        return True

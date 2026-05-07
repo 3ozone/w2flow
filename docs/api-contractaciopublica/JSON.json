@@ -1,0 +1,480 @@
+{
+    "versio": "1.0.0",
+    "codiExpedient": "X2026000123",
+    "idExpedient": "f0b5b0e9-474a-482f-b917-908b85d2ca97",
+    "dataPublicacioPlanificada": "2026-05-02T09:44:07.375Z",
+    "organ": {
+        "nom": "Ajuntament de Montagut i Oix",
+        "nif": "P1711600E",
+        "direccioPostal": "Avinguda de les Escoles, 6  17855 Montagut, Girona",
+        "localitat": "Montagut i Oix",
+        "web": "http://www.montagut-oix.cat",
+        "telefon": "972287804",
+        "fax": "972687427",
+        "email": "ajuntament@montagut-oix.cat",
+        "personesContacte": [
+            {}
+        ],
+        "tipusPoderAdjudicador": 1500006,
+        "observacions": {},
+        "horari": {
+            "ca": "De dilluns a divendres de 09 a 14h"
+        },
+        "organContractacioId": 2105808,
+        "activitatPrincipalOrgan": {
+            "id": 1051243,
+            "ca": "Serveis de caràcter general",
+            "es": "Servicios de carácter general"
+        }
+    },
+    "publicacio": {
+        "fase": {
+            "id": 1000040,
+            "ca": "Anunci de licitació",
+            "es": "Anuncio de licitación",
+            "en": "Tender announcement",
+            "oc": "Anóncia de licitacion"
+        },
+        "expedientId": "f0b5b0e9-474a-482f-b917-908b85d2ca97",
+        "teLots": false,
+        "dadesBasiquesPublicacio": {
+            "fasePublicacio": {
+                "id": 1000040,
+                "ca": "Anunci de licitació",
+                "es": "Anuncio de licitación",
+                "en": "Tender announcement",
+                "oc": "Anóncia de licitacion"
+            },
+            "normativaAplicable": {
+                "id": 1008186,
+                "ca": "LCSP (contractes del sector públic)",
+                "en": "LCSP (public sector contracts)",
+                "oc": "LCSP (contractes deth sector public)"
+            },
+            "codiExpedient": "X2026000123",
+            "denominacio": {
+                "ca": "CONTRACTE DEL SERVEI DE SOCORRISME DE LA PISCINA MUNICIPAL DE MONTAGUIT I OIX DURANT LA TEMPORADA D´ESTIU 2026 "
+            },
+            "descripcio": {
+                "ca": "L'objecte del contracte és la prestació del servei professional de socorrisme de la piscina municipal de Montagut i Oix durant la temporada d´estiu 2026,  de conformitat amb el Plec de Prescripcions Tècniques Particulars. "
+            },
+            "observacions": {
+                "ca": "-"
+            },
+            "tipusPublicacioExpedient": {
+                "id": 1000000,
+                "ca": "Contracte",
+                "en": "Contract",
+                "oc": "Contracte"
+            },
+            "tipusTramitacio": {
+                "id": 470,
+                "ca": "Ordinària",
+                "es": "Ordinaria",
+                "en": "Ordinary",
+                "oc": "Ordinària"
+            },
+            "tipusContracte": {
+                "id": 393,
+                "ca": "Serveis",
+                "es": "Servicios",
+                "en": "Services",
+                "oc": "Servicis"
+            },
+            "procedimentAdjudicacio": {
+                "id": 1000008,
+                "ca": "Obert simplificat abreujat",
+                "es": "Simplificado de tramitación sumária",
+                "en": "Open simplified abbreviated",
+                "oc": "Daurit simplificat abracat"
+            },
+            "publicacioAgregada": false,
+            "accesExclusiu": false,
+            "tipusOfertaElectronica": {
+                "id": 413,
+                "ca": "Sobre digital",
+                "es": "Sobre digital",
+                "en": "Digital envelope",
+                "oc": "Envolopa digitau"
+            },
+            "descripcioAltres": {},
+            "compraPublicaInnovacio": false,
+            "compraPublicaPrecomercial": false,
+            "contracteMixt": false,
+            "justificacioTramitacioUrgencia": {},
+            "denominacioExpedientReferencia": {},
+            "metodologiaBim": false
+        },
+        "dadesPublicacio": {
+            "pressupostLicitacio": 13896.0,
+            "observacions": {
+                "ca": "-"
+            },
+            "contracteHarmonitzat": false,
+            "dataTerminiPresentacioOSolicitud": "2026-04-27T21:59:59.000Z",
+            "adrecaElectronicaPresentacioOfertes": {
+                "ca": "https://contractaciopublica.cat/ca/perfils-contractant/detall/2105808?categoria=0"
+            },
+            "preveuenModificacionsAlsPlecs": false,
+            "preveuenProrroguesAlsPlecs": true,
+            "informacioComplementariaProrroga": {
+                "ca": "Possibilitat de pròrrogues i termini: Sí, 1 any per mutu acord d´ambdues parts.  "
+            },
+            "informacioComplementariaModificacio": {},
+            "valorEstimatContracte": 40353.98,
+            "iva": 21,
+            "varisTipusIva": false,
+            "pressupostBaseLicitacioAmbIva": 16814.16,
+            "acpAplicable": false,
+            "justificacioProcedimentUtilitzat": {},
+            "plecsDeClausulesAdministratives": {
+                "ca": [
+                    {
+                        "id": 302221234,
+                        "titol": "PCAP CONTRACTE SERVEI SOCORRISME PISCINA 2026.pdf",
+                        "path": "ZbsYQPbghvefcLDKukhHm_z8hEC-gbcHHd3Rz_g689ENEgIhLb1IoAcUZL5Y32fz19483Cfvq9CKEg9IFTr1yN6bPkL0yrVqacNATrQUJmYmE-fZe2Bq1KUoWLRkliD-j161m1PaLj8BknCpt2cwvRH1bROw62N1LtlkUSCMLIlIwtV2I9v6ktsHZwHBsqoNil9tUoJnEoKvRUpNezsqPuXERtxnDY13C-O7WIuQKfT43r-FO6lptPQv4D5qqG0NVr6ISBSxE5TsQmHj211UdpMC9MPdmsh5qotFZCpDvICQKz0oFMmGUA-ZJ7-WH8cTQqbX_m_erW2XR7FuOxR7Zw==",
+                        "hash": "4E5107C93071F4E9FF6AEB836FE8D0BE",
+                        "idioma": "ca",
+                        "mida": 553366
+                    }
+                ],
+                "es": [],
+                "en": [],
+                "oc": []
+            },
+            "plecsDePrescripcionsTecniques": {
+                "ca": [
+                    {
+                        "id": 302221235,
+                        "titol": "PPT SERVEI SOCORRISME PISCINA 2026.pdf",
+                        "path": "lXuHpVWpStuobl2KTvqQfYZiHcPx4tY6ouDJbzm40tc9NkmeJfpJPgedGFgPS8r_5PtfQi8eRzx6fJb4meOUgnFTDJ04EikmOhs4CYI2sNn7xYDTi6Go_xcR_-U12bGo_FLsF5jQOR4eI_OX9bpGYafT8x1gK_WSumm-zZp9sehIa0DyfytVNqznxZA3Wj95uAbZDOmorPosKjeE6tEkGaXYzUnm2mlo8qJuQE7Wr_-2i1bt8PwHJYYt3J6fY93tW4_sjubPjnZvTVaw9LP4mSAlPR-6az_WXgummElHS2DywLZiq63shg1PvLDpf_4NwUwZaa6vmOwtM1hPtrSJ7g==",
+                        "hash": "BA333DF37F5C41E20E5311277BF619EE",
+                        "idioma": "ca",
+                        "mida": 186745
+                    }
+                ],
+                "es": [],
+                "en": [],
+                "oc": []
+            },
+            "memoriaJustificativaContracte": {
+                "ca": [
+                    {
+                        "id": 302221233,
+                        "titol": "MEMORIA JUSTIFICATIVA NECESSITAT LICITACIÓ SERVEI SOCORRISME PISCINA ESTIU 2026.pdf",
+                        "path": "InmZpHldvdeu0T0kLpAxh-dQH-lNqqvUc9uCcZkUAnVZm6Ocs8j2NgU7OZTfQW4-H-ibWrQXB5ACTxn00PVNK7IcNK5BL_wYDLkywhG9oUs4Wt4q2PUnpH-kA10sDN6dE5dSMw3naZtj9jQncREPvML0u1K1tmEBxLG4IzJBnRqzbsT4wdOYR33KGqIgDw8Jzc7COQlqX4Nw7v8nMxqdNf2cLGiG37Bx9CryIcxMfAw9bYXTXdymeawMOYVeh8eKmCP7SHJXMoQs_GuoOlPrBY3vN2goTX7mBcnbaW-7OURQmHC6S4xOSBG4AHnf9Wi9Bo6uFKjfiAosyU8qsMU3hw==",
+                        "hash": "9261C971C5DE61E7BC9306CA235CED45",
+                        "idioma": "ca",
+                        "mida": 115735
+                    }
+                ],
+                "es": [],
+                "en": [],
+                "oc": []
+            },
+            "documentsAprovacio": {
+                "ca": [
+                    {
+                        "id": 302221232,
+                        "titol": "DEC APROV CONV LICITACIÓ SERVEI SOCORRISME PISCINA 2026.pdf",
+                        "path": "hQJaHLJWMjNnqmZqNuFFiFbDqhC1slqoWYt32Xmzb2fmKffuaAfq7N6i2U7sarM6FwAqEvx__vTo-fScGKaFkw5q9--pxAe99yap8cqCIgWQZvI7T-WzFo1i39RCqP_Aeqmy5IMR4HmRpTtfSazakqAD6PQF-WeXQL61_ZsIBylS1LB8fN8dFzze-jKDlhlx2CqB_CaVIfio3sHp5zmDPeFELuTmfCseN1a7aWxIQLHemCSpqNPrOv7bSm3el682DVtCxRSF839mqqRAXBpEryph0S2w50_3-xbo6bgLp1I7Y5Q03SNQlfXGR0w4UkW5W1hfmMlMr7ObksBMOYgB9Q==",
+                        "hash": "C366594341BAD98CBA5FFE531D33B9CF",
+                        "idioma": "ca",
+                        "mida": 138401
+                    }
+                ],
+                "es": [],
+                "en": [],
+                "oc": []
+            },
+            "altresDocuments": {
+                "ca": [
+                    {
+                        "id": 302221229,
+                        "titol": "ANUNCI LICITACIÓ SERVEI SOCORRISME PISCINA 2026.pdf",
+                        "path": "ofjuh7D8Dd5xcAvpmWXwOymD8G1Wtn2RCtvxfNPIuDk4fLiMBF1J73f4ho-EluYCizZL5ZqUxzvv3Uisy4rQ5ZkoGbnzLhpCrx9PRA4tbjSmDBofpKAD4I7-MKSZaP9YqxvSo2kewiByO3CjoFYqL1gl4kT-D3trhboE4gNri7DwynOqjNnyG6NAwfEVJFU-BMv89XiLtKVCPStPQNsRXxSYJqrDl2Rugxo77bJtv9r58pEPuBMfkG5FxhCMsRpmeN5ZDim0i5Ts0Gnvzq_8xYWOpt3qRHza1dciaCWj9q61nH_fyzgkjBjzzCjImW1ZQyN6xacCa-9zfEUmrWFS1Q==",
+                        "hash": "FD993A3D37DA4F32BF9023C095353AEE",
+                        "idioma": "ca",
+                        "mida": 222575
+                    },
+                    {
+                        "id": 302221230,
+                        "titol": "INF INSUFICIENCIA MITJANS PÈR PRESTAR SERVEI SOCORRISME PISCINA ESTIU 2026.pdf",
+                        "path": "Dc4TngIPhgRpNylIFHaDydSKrZBOOrLW6N3ASmXOSboohcUUcNElJA7rGgCZJn6KO6gLt-7scXN_957kxeUPbp-72AdYqy8RIHwaNZ-k9pXaCq5DsiII9Xr-VROCpu-lUtUGZMNBxsGcv8BkhXpXurjeP0DLypL3RxZPvWM02WqXf45IvCbPBfcKy9Dty7E-BXDz_y4qLodiRfQbPvX-026fO940DoauKyX3J58ngMt6-4QdqsMrJePR9Nok-WrXW0SpaxXiXoWusY__4oAQlm0lc1hTLDMUkseFZ2KMHqKvIx-4LSwptN_eoForqtSgWTd2Yt-vll_GtEoaxdLuHQ==",
+                        "hash": "72837DEF76CD5B4D2AB6EBF290500D74",
+                        "idioma": "ca",
+                        "mida": 180985
+                    },
+                    {
+                        "id": 302221231,
+                        "titol": "INF SG LICITACIÓ CONTRACTE SERVEI SOCORRISME PISCINA ESTIU 2026.pdf",
+                        "path": "MsoYGtkAYNKmZreuFLIwABa8PeZp2MeMhE2pF4D-kLHQTVRWZzULncBwrychxdqE0Vd5CQTFveyEl3uuj79wuFOxrhJ6FHx5DEwtQFyrDuWUdozmzHy3-kmkj7H4DNKw4yvLc9AYW-8T_cKdYS0oNgteC3CtrrkqKKzH31lBezUSFDoLUqWZuPnLY3emO60ddghANNxCuvSB-492U4GwBLdhyov3W_smX15d8HFGEyLZr8DaCyubbTFJgoEe9gRXQWiJmzX1DeAg5TOn_Xi4Z-SfXtyXRlviBwkyM06x7GKf7xNmbPGThFroipKeT7YwzYmwxce1fafzRUO2DZBUPw==",
+                        "hash": "ACF22612930B7087B1CD21061F1FC34F",
+                        "idioma": "ca",
+                        "mida": 142194
+                    }
+                ],
+                "es": [],
+                "en": [],
+                "oc": []
+            },
+            "seleccioLlenguesRedactarOfertes": {
+                "ca": true,
+                "es": false,
+                "en": false,
+                "oc": false
+            },
+            "justificacioNoExistenciaLots": {
+                "id": 1008190,
+                "ca": "Art.99.3 b) El fet que la realització independent de les diverses prestacions compreses en l’objecte el contracte en dificulti l’execució correcta des del punt de vista tècnic; o bé que el risc per a l’execució correcta del contracte procedeixi de la naturalesa del seu objecte, en implicar la necessitat de coordinar l’execució de les diferents prestacions, qüestió que es podria veure impossibilitada per la seva divisió en lots i l’execució per una pluralitat de contractistes diferents. Tots dos aspectes, si s’escau, s’han de justificar degudament en l’expedient",
+                "en": "Art. 99.3.b) The fact that the independent performance of the various services indicated as the purpose of the contract hinders their correct implementation from a technical point of view; or that the risk for the correct implementation of the contract comes from the nature of its purpose, since it involves the need to coordinate the implementation of the various services, an issue that could be made impossible by its division into lots and being undertaken by a plurality of different contractors. Both aspects, if applicable, must be duly justified in the file",
+                "oc": "Art.99.3 b) Er hèt qu'era realizacion independenta des diuèrses prestacions comprenudes en er objècte eth contracte ne dificulte era execucion corrècta dempús deth punt d'enguarda tecnic; o plan qu'eth risc entara execucion corrècta deth contracte provengue dera natura deth sòn objècte, en implicar eth besonh de coordinar era execucion des diferentes prestacions, ahèr que se poirie veir impossibilitada pera sua division en lòts e era execucion per ua pluralitat de contractistes diferenti. Toti dus aspèctes, se s’esquèr, les cau justificar degudaments en expedient"
+            },
+            "utilitzenComandesElectroniques": false,
+            "acceptaFacturacioElectronica": true,
+            "utilitzaPagamentElectronic": true,
+            "acceptaCatalegElectronic": false,
+            "contracteRelacionatFinanciatFonsUnioEuropea": false,
+            "divisioEnLots": {
+                "id": 1008401,
+                "ca": "Sense lots"
+            },
+            "motiuContracteNoInformatLots": {},
+            "contractacioConjunta": false,
+            "peuRecurs": {
+                "ca": "Veure clàusula trenta-novena del PCAP que regeix el present contracte. "
+            },
+            "adrecaPresentacioRecurs": {
+                "ca": "secretaria@montgut-oix.cat"
+            },
+            "elementsCondicionsOfertesIntegradores": {}
+        },
+        "dadesPublicacioLot": [
+            {
+                "ultimaObertura": {
+                    "lloc": {
+                        "ca": "Ajuntament de Montagut i Oix",
+                        "es": "Ajuntament de Montagut i Oix"
+                    },
+                    "descripcio": {
+                        "ca": "Obertura sobre únic",
+                        "es": "Obertura sobre únic"
+                    },
+                    "personesAutoritzades": {},
+                    "dataOberturaText": {
+                        "ca": "A partir de la data fi de presentació d'ofertes o a partir d'aquesta data + 24h"
+                    },
+                    "mostrarDataObertura": false,
+                    "sobre": {
+                        "ca": "Sobre únic",
+                        "es": "Sobre únic",
+                        "en": "Sobre únic",
+                        "oc": "Sobre únic"
+                    }
+                },
+                "pressupostLicitacio": 13896.0,
+                "iva": 21,
+                "pressupostBaseLicitacioAmbIva": 16814.16,
+                "varisTipusIva": false,
+                "valorEstimat": 40353.98,
+                "canonExplotacio": {},
+                "calendariEstimatPerPublicacioAnuncisUlterior": {
+                    "ca": "-"
+                },
+                "llocExecucio": {
+                    "codiNuts": "ES512",
+                    "ca": "Montagut i Oix"
+                },
+                "duradaTermini": {
+                    "esDurada": true,
+                    "anys": 1,
+                    "mesos": 0,
+                    "dies": 0,
+                    "observacions": {
+                        "ca": " \nLa prestació del servei es durà a terme coincidint amb el període d’obertura de la piscina que per a l´any 2026 és: del 20 de juny al 31 d´agost, ambdós inclosos.  \nPossibilitat de pròrrogues i termini: Sí, 1 any per mutu acord d´ambdues parts.  \n"
+                    }
+                },
+                "condicionsExecucio": [
+                    {
+                        "tipusCondicioExecucio": {
+                            "id": 1008183,
+                            "ca": "Condicions especials tipus Social",
+                            "es": "Condiciones especiales tipo Social",
+                            "en": "Special social type conditions",
+                            "oc": "Condicions especiaus tipe Sociau"
+                        },
+                        "subtipusCondicioExecucio": {
+                            "id": 1600849,
+                            "ca": "Condicions laborals",
+                            "es": "Condiciones laborales",
+                            "en": "Working conditions",
+                            "oc": "Condicions laboraus"
+                        },
+                        "descripcio": {
+                            "ca": "És condició especial d’execució que l'empresa contractista garanteixi la afiliació i l'alta en la Seguretat Social de les persones treballadores destinades a l'execució del contracte i les normes i les condicions fixades en el conveni col·lectiu d'aplicació. \n \nA efectes de comprovació, el contractista haurà de remetre a l’òrgan de contractació, quan aquest ho sol·liciti, una declaració on constin les dades que permetin comprovar aquest compliment. \n \nEl contractista s’obliga a proporcionar la informació requerida de les condicions laborals dels treballadors. \n"
+                        }
+                    }
+                ],
+                "oberturaSobres": [
+                    {
+                        "lloc": {
+                            "ca": "Ajuntament de Montagut i Oix",
+                            "es": "Ajuntament de Montagut i Oix"
+                        },
+                        "descripcio": {
+                            "ca": "Obertura sobre únic",
+                            "es": "Obertura sobre únic"
+                        },
+                        "personesAutoritzades": {},
+                        "dataOberturaText": {
+                            "ca": "A partir de la data fi de presentació d'ofertes o a partir d'aquesta data + 24h"
+                        },
+                        "mostrarDataObertura": false,
+                        "sobre": {
+                            "ca": "Sobre únic",
+                            "es": "Sobre únic",
+                            "en": "Sobre únic",
+                            "oc": "Sobre únic"
+                        }
+                    }
+                ],
+                "prorroguesPrevistes": true,
+                "informacioProrrogaComplementaria": {
+                    "ca": "Possibilitat de pròrrogues i termini: Sí, 1 any per mutu acord d´ambdues parts.  "
+                },
+                "modificacioPrevista": false,
+                "informacioModificacioComplementaria": {},
+                "acceptaVariants": false,
+                "elementsVariants": {},
+                "garantiaProvisional": false,
+                "garantiaDefinitiva": false,
+                "reservaSocial": false,
+                "frequenciaContractesAdjudicar": {},
+                "justificacioAcordMarc": {},
+                "solvenciesTecniques": [
+                    {
+                        "criteriSolvencia": {
+                            "id": 1008242,
+                            "ca": "Relació serveis o treballs efectuats de la mateixa naturalesa en el curs de com a màxim els últims tres anys",
+                            "en": "List of services or work of the same nature carried out during the last three years at most",
+                            "oc": "Relacion servicis o trabalhs efectuadi dera madeisha natura en cors de coma maximom es darrèri tres ans"
+                        },
+                        "valorMinimExigit": {
+                            "ca": "•\tRelació dels principals serveis realitzats en els últims tres anys que inclogui l’import, dates i el destinatari, sigui públic o privat. L’import de l’any de major execució haurà de ser almenys el 70% del valor estimat del contracte o el 70% de la anualitat mitjana si aquesta és inferior al valor estimat del contracte. "
+                        },
+                        "mitjaAcreditacio": {
+                            "id": 1008253,
+                            "ca": "Certificats o declaracions de bona execució",
+                            "en": "Certificates or declarations of good quality production",
+                            "oc": "Certificats o declaracions de bona execucion"
+                        },
+                        "descripcioCriteriSolvencia": {},
+                        "descripcioMitjaAcreditacio": {}
+                    }
+                ],
+                "solvenciesEconomiques": [
+                    {
+                        "criteriSolvencia": {
+                            "id": 1008218,
+                            "ca": "Volum anual de negocis",
+                            "en": "Annual volume of business",
+                            "oc": "Volum annau de negòcis"
+                        },
+                        "valorMinimExigit": {
+                            "ca": "a.\tVolum anual de negocis del licitador que referit a l’any de major volum de negocis dels tres últims conclusos haurà de ser almenys una vegada i mitja el valor estimat del contracte quan la seva duració sigui inferior a un any i una vegada i mitja el valor anual mitjà del contracte si la seva duració és superior a un any (preu €) "
+                        },
+                        "mitjaAcreditacio": {
+                            "id": 1008226,
+                            "ca": "Comptes anuals",
+                            "en": "Annual accounts",
+                            "oc": "Compdes annaus"
+                        },
+                        "descripcioCriteriSolvencia": {},
+                        "descripcioMitjaAcreditacio": {}
+                    }
+                ],
+                "classificacionsEmpresarials": [],
+                "criteriSeleccioNombreCandidats": {},
+                "nomParticipantsConsiderat": {},
+                "criterisSeleccioParticipants": {},
+                "descripcioPagamentsParticipants": {},
+                "condicionsParticipacio": {
+                    "contracteNomesExecutaEnMarcDeProgrames": false,
+                    "reservaPrestacioServeiAProfessio": false,
+                    "contracteRestringitACentresEspecials": false,
+                    "criterisRelatiusSituacioPersonalOperadorsEconomicsExecucio": {
+                        "ca": "-"
+                    }
+                },
+                "teDiversosCriterisAdjudicacio": false,
+                "criterisAdjudicacio": [],
+                "cpvPrincipal": {
+                    "codi": "79714000-2",
+                    "ca": "Serveis de vigilància",
+                    "es": "Servicios de vigilancia",
+                    "en": "Surveillance services",
+                    "oc": "Servicis de vigilància"
+                },
+                "cpvsSecundaris": [],
+                "garantiaComplementaria": false,
+                "revisioPreus": {
+                    "id": 1008442,
+                    "ca": "Altres"
+                },
+                "preuUnitari": true,
+                "prescripcionsTecniquesSocials": false,
+                "prescripcionsTecniquesAmbientals": false,
+                "estudisDictamens": false,
+                "clausulaLinguistica": false,
+                "clausulaEtica": false,
+                "llistatPrescripcionsTecniquesSocials": []
+            }
+        ],
+        "dadesExpedient": {
+            "idiomaPerDefecte": {
+                "id": 1000031,
+                "ca": "Català",
+                "es": "Catalan",
+                "en": "Catalan",
+                "oc": "Catalan"
+            },
+            "expedientId": "f0b5b0e9-474a-482f-b917-908b85d2ca97",
+            "lleiAssociada": "Llei 2017/2019",
+            "noAdmetrePreguntes": false,
+            "esPublicacioAntiga": false,
+            "tipusOfertaElectronica": 413,
+            "denominacioExpedientReferencia": {},
+            "esReduit": false
+        },
+        "publicacionsOficials": [],
+        "tipusEsmena": {
+            "id": 1008194,
+            "ca": "Data obertura de sobres",
+            "en": "Envelope opening date",
+            "oc": "Data dubertura de sobres"
+        },
+        "motiuEsmena": {
+            "ca": "Modificació de dades d'obertura"
+        }
+    },
+    "pathPdf": "nWw6FyIpLzYP0FtfjZlggmUI5NQevZ_OQK7L58MEPhGyS3vfmczNVBewFArdnJmMNjuNb5PVeKozAWmEUpBCDm1AqTH-JJbmlGdigGUgZjExhY1hNvMkLs_ap3GHw8lL17bG_UKFQFLk8pArKkLtpG2ipVpaETbCF6P7xYZq64p_NcI8qo2FGPRSexwDTZCoWy2S0siYdMoAwMH3n6s2_y420FPIrB510-DpSs0cJkYxYr2GaDLjI726nsTOVkxdbwvZqo_T5oi6104G_fIOCuoDF8pe_bAHMxooesLlkQyyOAK4R_KZGOmLa005_j-VfNPJk1OrDiuVWClEBp6YKg==",
+    "pathCertificacio": "lnn2ucl4P6A53OL-oDdDBpBdqERX9YlM6D8teHwLf3aSIsIBhzbK3ak0QHxHNebbn6L3BEt4Bg-tBZmPg5Q7oe8LNh5AdglmLl17I3QN7lWQ4mH1T5Gd_qQNFgn_JoLaO6VZHaW-XtUQ0zcMhtfo5zj7wJnyjeC66bmt-8RV14sZBN4SAfuZZVv7X1W1nUpZUUGbv-LFCZVU-AMKkdM5bsCs75izOWLcqkBHKTKDyzOWRGaRuez2XpvhrW8EVC4uvAdk-QEVsqr2bBzbqlaxZ09VeSAvWgNHLkzgI45ie_PFUE_K9jbZ5phjTyX-RxsxhiWR7IpRzzPCs4TP41bxTg==",
+    "pathJson": "Y0nB9htfCsdAG1a6gvzLtatrZiImBy1dkyxaOd90-vY4IRkCeLr119-BKhgspkyyhq0CY62IiTETCdiLzsDvZAiXNVoYWaBIzo79oeeXsKjW1308Ja-bK7sgfu9z7royKm_VyrzubaHPubnRayQAI3xR6JlKWxK7T0EVMUjpXEynEyi9LMav0maqqC5kgEEVp7SQSyLE3RRVNeWkAsJLGtRUlP0H9ZaudJwthnPxT-pitt-zLwDtIL0x38HWgcWLe0vN1CN3x6OHHGsAS1cDEEB7Q3jaqyxXApXexH8tOfBDYCfb4umNxb8UBn2zFudBWJnFeF2SkLbY80FanEo6RQ==",
+    "dataPublicacioReal": "2026-05-02T09:46:06.261Z",
+    "dadesExpedient": {
+        "idiomaPerDefecte": {
+            "id": 1000031,
+            "ca": "Català",
+            "es": "Catalan",
+            "en": "Catalan",
+            "oc": "Catalan"
+        },
+        "expedientId": "f0b5b0e9-474a-482f-b917-908b85d2ca97",
+        "lleiAssociada": "Llei 2017/2019",
+        "noAdmetrePreguntes": false,
+        "esPublicacioAntiga": false,
+        "tipusOfertaElectronica": 413,
+        "denominacioExpedientReferencia": {},
+        "esReduit": false
+    }
+}

@@ -14,6 +14,11 @@ from app.domain.exceptions.duplicate_tender_error import DuplicateTenderError
 from app.domain.value_objects.score import Score
 from app.infrastructure.repositories.models import ScoreModel, TenderModel
 
+try:
+    from psycopg2.errors import UniqueViolation as _UniqueViolation
+except ImportError:  # fallback if psycopg2 not available (e.g. in unit tests)
+    _UniqueViolation = None
+
 
 class TenderRepository(TenderRepositoryPort):
     """Persists and retrieves Tenders and ScoredTenders using SQLAlchemy."""
@@ -32,16 +37,24 @@ class TenderRepository(TenderRepositoryPort):
             codi_expedient=tender.codi_expedient,
             fase=tender.fase,
             data_publicacio=tender.data_publicacio,
+            codi_cpv=tender.codi_cpv,
+            termini_execucio=tender.termini_execucio,
+            data_limit_presentacio=tender.data_limit_presentacio,
         )
         self._session.add(model)
         try:
             self._session.flush()
             self._session.commit()
-        except IntegrityError:
+        except IntegrityError as exc:
             self._session.rollback()
-            raise DuplicateTenderError(
-                f"Tender with expedient_id '{tender.expedient_id}' already exists."
-            )
+            # Only treat genuine duplicate-key violations as DuplicateTenderError.
+            # Other IntegrityErrors (e.g. NOT NULL, FK violations) must propagate so
+            # the caller knows the tender was NOT persisted.
+            if _UniqueViolation is not None and isinstance(exc.orig, _UniqueViolation):
+                raise DuplicateTenderError(
+                    f"Tender with expedient_id '{tender.expedient_id}' already exists."
+                )
+            raise
 
     async def get_by_id(self, expedient_id: str) -> Tender | None:
         """Return the tender with the given expedient_id, or None."""
@@ -57,7 +70,8 @@ class TenderRepository(TenderRepositoryPort):
             expedient_id=score.expedient_id,
             total=score.total,
             detall=json.dumps(score.detall),
-            paraules_clau_trobades=json.dumps(list(score.paraules_clau_trobades)),
+            paraules_clau_trobades=json.dumps(
+                list(score.paraules_clau_trobades)),
             penalitzacions=json.dumps(list(score.penalitzacions)),
             recomanacio=score.recomanacio,
         )
@@ -83,11 +97,13 @@ class TenderRepository(TenderRepositoryPort):
                 expedient_id=sm.expedient_id,
                 total=sm.total,
                 detall=json.loads(sm.detall),
-                paraules_clau_trobades=tuple(json.loads(sm.paraules_clau_trobades)),
+                paraules_clau_trobades=tuple(
+                    json.loads(sm.paraules_clau_trobades)),
                 penalitzacions=tuple(json.loads(sm.penalitzacions)),
                 recomanacio=sm.recomanacio,
             )
-            result.append(ScoredTender(tender=tender, score=score, requirements=None))
+            result.append(ScoredTender(
+                tender=tender, score=score, requirements=None))
         return result
 
     async def list_documents(self, expedient_id: str) -> list:
@@ -139,4 +155,7 @@ class TenderRepository(TenderRepositoryPort):
             codi_expedient=model.codi_expedient,
             fase=model.fase,
             data_publicacio=model.data_publicacio,
+            codi_cpv=model.codi_cpv,
+            termini_execucio=model.termini_execucio,
+            data_limit_presentacio=model.data_limit_presentacio,
         )

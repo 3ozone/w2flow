@@ -29,29 +29,29 @@ class TestScore:
     # assign_traffic_light()
     # ------------------------------------------------------------------
 
-    def test_assign_traffic_light_returns_green_at_50(self):
-        """assign_traffic_light() must return GREEN when total == 50."""
-        score = self._make_score(total=50)
-        assert score.assign_traffic_light() == TrafficLight.GREEN
-
-    def test_assign_traffic_light_returns_green_above_50(self):
-        """assign_traffic_light() must return GREEN when total > 50."""
+    def test_assign_traffic_light_returns_green_at_70(self):
+        """assign_traffic_light() must return GREEN when total == 70 (RN-03)."""
         score = self._make_score(total=70)
         assert score.assign_traffic_light() == TrafficLight.GREEN
 
-    def test_assign_traffic_light_returns_yellow_at_25(self):
-        """assign_traffic_light() must return YELLOW when total == 25."""
-        score = self._make_score(total=25)
+    def test_assign_traffic_light_returns_green_above_70(self):
+        """assign_traffic_light() must return GREEN when total > 70."""
+        score = self._make_score(total=90)
+        assert score.assign_traffic_light() == TrafficLight.GREEN
+
+    def test_assign_traffic_light_returns_yellow_at_40(self):
+        """assign_traffic_light() must return YELLOW when total == 40 (RN-03)."""
+        score = self._make_score(total=40)
         assert score.assign_traffic_light() == TrafficLight.YELLOW
 
-    def test_assign_traffic_light_returns_yellow_below_50(self):
-        """assign_traffic_light() must return YELLOW when 25 <= total < 50."""
-        score = self._make_score(total=49)
+    def test_assign_traffic_light_returns_yellow_below_70(self):
+        """assign_traffic_light() must return YELLOW when 40 <= total < 70."""
+        score = self._make_score(total=69)
         assert score.assign_traffic_light() == TrafficLight.YELLOW
 
-    def test_assign_traffic_light_returns_red_below_25(self):
-        """assign_traffic_light() must return RED when total < 25."""
-        score = self._make_score(total=24)
+    def test_assign_traffic_light_returns_red_below_40(self):
+        """assign_traffic_light() must return RED when total < 40 (RN-03)."""
+        score = self._make_score(total=39)
         assert score.assign_traffic_light() == TrafficLight.RED
 
     def test_assign_traffic_light_returns_red_at_zero(self):
@@ -63,19 +63,19 @@ class TestScore:
     # is_viable()
     # ------------------------------------------------------------------
 
-    def test_is_viable_returns_true_when_total_at_25(self):
-        """is_viable() must return True when total == 25 (YELLOW threshold)."""
-        score = self._make_score(total=25)
+    def test_is_viable_returns_true_when_total_at_40(self):
+        """is_viable() must return True when total == 40 (YELLOW threshold, RN-03)."""
+        score = self._make_score(total=40)
         assert score.is_viable() is True
 
-    def test_is_viable_returns_true_when_total_above_25(self):
-        """is_viable() must return True when total > 25."""
+    def test_is_viable_returns_true_when_total_above_40(self):
+        """is_viable() must return True when total > 40."""
         score = self._make_score(total=60)
         assert score.is_viable() is True
 
-    def test_is_viable_returns_false_when_total_below_25(self):
-        """is_viable() must return False when total < 25 (RED)."""
-        score = self._make_score(total=24)
+    def test_is_viable_returns_false_when_total_below_40(self):
+        """is_viable() must return False when total < 40 (RED, RN-03)."""
+        score = self._make_score(total=39)
         assert score.is_viable() is False
 
     def test_is_viable_returns_false_at_zero(self):
@@ -99,7 +99,7 @@ class TestScore:
 
     def test_to_report_contains_traffic_light(self):
         """to_report() must include 'traffic_light' as a string value."""
-        score = self._make_score(total=50)
+        score = self._make_score(total=70)
         report = score.to_report()
         assert "traffic_light" in report
         assert report["traffic_light"] == TrafficLight.GREEN.value

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -18,10 +20,14 @@ _reports: dict[str, ComparativeReport] = {}
 # In-memory store: report_id -> narrative analysis text (from AnalysisService)
 _reports_analysis: dict[str, str] = {}
 
+# In-memory store: report_id -> creation datetime string
+_reports_created_at: dict[str, str] = {}
+
 
 def add_report(report_id: str, report: ComparativeReport) -> None:
     """Store a ComparativeReport under the given id."""
     _reports[report_id] = report
+    _reports_created_at[report_id] = datetime.now().strftime("%d/%m/%Y %H:%M")
 
 
 def add_analysis(report_id: str, analysis: str) -> None:
@@ -87,4 +93,5 @@ async def delete_report(report_id: str) -> Response:
             status_code=404, detail=f"Report '{report_id}' not found")
     del _reports[report_id]
     _reports_analysis.pop(report_id, None)
+    _reports_created_at.pop(report_id, None)
     return Response(status_code=204)

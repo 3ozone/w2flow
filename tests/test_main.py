@@ -4,25 +4,24 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+import app.infrastructure.dependencies as deps
 import app.infrastructure.api.v1.routers.tenders_router as tenders_module
-import app.infrastructure.api.v1.routers.pipeline_router as pipeline_module
-from app.infrastructure.api.v1.schemas.pipeline_status_schema import PipelineState, PipelineStatusSchema
+from app.infrastructure.repositories.in_memory_pipeline_status_adapter import InMemoryPipelineStatusAdapter
 from app.main import app
 
 
 @pytest.fixture(autouse=True)
 def reset_pipeline():
     """Reset pipeline state between tests."""
-    original_state = pipeline_module._pipeline_state
-    original_status = pipeline_module._pipeline_status
+    original = deps.pipeline_status_port
+    deps.pipeline_status_port = InMemoryPipelineStatusAdapter()
     yield
-    pipeline_module._pipeline_state = original_state
-    pipeline_module._pipeline_status = original_status
+    deps.pipeline_status_port = original
 
 
 @pytest.fixture(autouse=True)
 def inject_mock_repository():
-    """Inject a mock repository so /tenders routes don't crash."""
+    """Inject a mock repository so routes don't crash."""
     mock_repo = MagicMock()
     mock_repo.list_scored = AsyncMock(return_value=[])
     original = tenders_module._repository

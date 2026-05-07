@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.application.ports.document_storage_port import DocumentStoragePort
 from app.domain.entities.document import Document
+from app.domain.value_objects.document_type import DocumentType
 from app.infrastructure.repositories.models import DocumentModel
 
 
@@ -67,3 +68,22 @@ class DocumentRepository(DocumentStoragePort):
         if model is None:
             return None
         return model.file_path
+
+    async def list_documents(self, expedient_id: str) -> list[Document]:
+        """Return all documents stored for a given expedient_id."""
+        from sqlalchemy import select
+        stmt = select(DocumentModel).where(
+            DocumentModel.expedient_id == expedient_id)
+        models = self._session.execute(stmt).scalars().all()
+        return [
+            Document(
+                expedient_id=m.expedient_id,
+                doc_id=m.doc_id,
+                titol=m.titol,
+                hash=m.hash,
+                mida_kb=m.mida_kb,
+                file_path=m.file_path,
+                type=DocumentType(m.type),
+            )
+            for m in models
+        ]

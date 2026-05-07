@@ -170,3 +170,49 @@ class TestDocumentRepositoryDiskWrite:
         await repo_with_disk.save(doc, content=b"second version")
         expected = tmp_path / doc.expedient_id / doc.titol
         assert expected.read_bytes() == b"second version"
+
+
+class TestDocumentRepositoryListDocuments:
+    """Tests for DocumentRepository.list_documents()."""
+
+    @pytest.mark.asyncio
+    async def test_list_documents_returns_empty_for_unknown_expedient(self, repository):
+        """list_documents() must return [] for an expedient_id with no documents."""
+        result = await repository.list_documents("expedient-unknown")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_list_documents_returns_saved_documents(self, repository):
+        """list_documents() must return all documents saved for a given expedient_id."""
+        doc1 = _make_document(doc_id=20)
+        doc2 = _make_document(doc_id=21)
+        await repository.save(doc1, content=b"PDF1")
+        await repository.save(doc2, content=b"PDF2")
+
+        result = await repository.list_documents("uuid-doc-1")
+
+        assert len(result) == 2
+        doc_ids = {d.doc_id for d in result}
+        assert {20, 21}.issubset(doc_ids)
+
+    @pytest.mark.asyncio
+    async def test_list_documents_returns_domain_document_objects(self, repository):
+        """list_documents() must return Document domain entities, not ORM models."""
+        doc = _make_document(doc_id=22)
+        await repository.save(doc, content=b"PDF")
+
+        result = await repository.list_documents("uuid-doc-1")
+
+        assert all(isinstance(d, Document) for d in result)
+
+    @pytest.mark.asyncio
+    async def test_list_documents_includes_file_path(self, repository):
+        """Each Document returned must have a non-empty file_path."""
+        doc = _make_document(doc_id=23)
+        await repository.save(doc, content=b"PDF")
+
+        result = await repository.list_documents("uuid-doc-1")
+
+        saved = next(d for d in result if d.doc_id == 23)
+        assert saved.file_path is not None
+        assert len(saved.file_path) > 0

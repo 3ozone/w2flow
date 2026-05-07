@@ -19,5 +19,9 @@ class DocumentStoragePort(ABC):
         """Return True if the document has already been stored."""
 
     @abstractmethod
+    async def list_documents(self, expedient_id: str) -> list[Document]:
+        """Return all documents stored for a given expedient_id."""
+
+    @abstractmethod
     async def get_path(self, expedient_id: str, doc_id: int) -> str | None:
         """Return the file path for a stored document, or None if not found."""

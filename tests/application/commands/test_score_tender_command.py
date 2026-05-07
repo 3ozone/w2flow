@@ -81,8 +81,8 @@ class TestScoreTenderCommandHandler:
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_score_pressupost_above_1M_gets_25pts(self):
-        """Pressupost >= 1_000_000 must yield 25 pts from pressupost."""
+    async def test_score_pressupost_above_1M_gets_30pts(self):
+        """Pressupost >= 1_000_000 must yield 30 pts from pressupost (RF-06)."""
         handler, _ = self._make_handler()
         command = ScoreTenderCommand(
             tender=_make_tender(pressupost=1_500_000.0),
@@ -90,11 +90,11 @@ class TestScoreTenderCommandHandler:
             pdf_texts=[],
         )
         result = await handler.handle(command)
-        assert result.score.detall["pressupost"] == 25
+        assert result.score.detall["pressupost"] == 30
 
     @pytest.mark.asyncio
-    async def test_score_pressupost_100k_to_500k_gets_10pts(self):
-        """Pressupost between 100_000 and 499_999 must yield 10 pts."""
+    async def test_score_pressupost_100k_to_500k_gets_15pts(self):
+        """Pressupost between 100_000 and 499_999 must yield 15 pts (RF-06)."""
         handler, _ = self._make_handler()
         command = ScoreTenderCommand(
             tender=_make_tender(pressupost=200_000.0),
@@ -102,7 +102,7 @@ class TestScoreTenderCommandHandler:
             pdf_texts=[],
         )
         result = await handler.handle(command)
-        assert result.score.detall["pressupost"] == 10
+        assert result.score.detall["pressupost"] == 15
 
     @pytest.mark.asyncio
     async def test_score_pressupost_below_100k_gets_5pts(self):
@@ -221,3 +221,59 @@ class TestScoreTenderCommandHandler:
         result_with = await handler.handle(command_with_pdf)
 
         assert result_with.score.total < result_without.score.total
+
+    # ------------------------------------------------------------------
+    # RF-06 — Escala 0-100 (RN-03)
+    # ------------------------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_maximum_achievable_score_is_100(self):
+        """The best possible score must not exceed 100 pts (RF-06 / RN-03).
+
+        Conditions to maximise: pressupost >= 1_000_000, many sector_positiu
+        keywords, procediment obert and subcontractació in text.
+        """
+        handler, _ = self._make_handler()
+        rich_pdf = (
+            "obres construcció infraestructura reforma rehabilitació urbanisme "
+            "enginyeria instal·lació maquinari manteniment obra civil edificació "
+            "pavimentació canalització xarxa electricitat fontaneria climatització "
+            "ascensor estructura fonamentació maquinaria escènica "
+            "procediment obert subcontractació"
+        )
+        command = ScoreTenderCommand(
+            tender=_make_tender(
+                titol="obres de construcció infraestructura reforma rehabilitació",
+                pressupost=2_000_000.0,
+            ),
+            filter_config=_make_filter_config(),
+            pdf_texts=[rich_pdf],
+        )
+        result = await handler.handle(command)
+        assert result.score.total <= 100, (
+            f"Score {result.score.total} exceeds maximum of 100 pts"
+        )
+
+    @pytest.mark.asyncio
+    async def test_best_score_reaches_100(self):
+        """With optimal inputs, the score must reach exactly 100 pts (RF-06)."""
+        handler, _ = self._make_handler()
+        rich_pdf = (
+            "obres construcció infraestructura reforma rehabilitació urbanisme "
+            "enginyeria instal·lació maquinari manteniment obra civil edificació "
+            "pavimentació canalització xarxa electricitat fontaneria climatització "
+            "ascensor estructura fonamentació maquinaria escènica "
+            "procediment obert subcontractació"
+        )
+        command = ScoreTenderCommand(
+            tender=_make_tender(
+                titol="obres de construcció",
+                pressupost=2_000_000.0,
+            ),
+            filter_config=_make_filter_config(),
+            pdf_texts=[rich_pdf],
+        )
+        result = await handler.handle(command)
+        assert result.score.total == 100, (
+            f"Expected 100 pts with optimal inputs, got {result.score.total}"
+        )

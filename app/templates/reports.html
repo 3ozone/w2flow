@@ -14,10 +14,14 @@
     {% for report_id, report in reports %}
     {% set viable = report.get_viable_tenders() | length %}
     {% set total = report.scored_tenders | length %}
+    {% set created = reports_created_at.get(report_id, "") %}
     <a href="/reports/{{ report_id }}"
        class="block rounded-xl border bg-white shadow-sm p-5 hover:shadow-md hover:border-indigo-200 transition-all">
       <div class="flex items-start justify-between mb-3">
-        <span class="text-xs font-mono text-gray-400 truncate max-w-[140px]" title="{{ report_id }}">{{ report_id[:8] }}…</span>
+        <div>
+          <span class="text-xs font-mono text-gray-400 truncate max-w-[140px]" title="{{ report_id }}">{{ report_id[:8] }}…</span>
+          {% if created %}<p class="text-xs text-gray-400 mt-0.5">{{ created }}</p>{% endif %}
+        </div>
         <span class="rounded-full text-xs font-medium px-2 py-0.5
           {% if viable > 0 %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
           {{ viable }} viables

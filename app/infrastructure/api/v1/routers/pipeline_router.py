@@ -13,9 +13,10 @@ from app.application.use_cases.commands.run_pipeline_command import (
     RunPipelineCommand,
     RunPipelineCommandHandler,
 )
+from app.application.dtos.pipeline_status_dto import PipelineStateEnum, PipelineStatusDTO
 from app.infrastructure.api.v1.routers import reports_router
 from app.infrastructure.services.analysis_service import AnalysisService
-from app.infrastructure.api.v1.routers import filters_router as filters_module
+from app.infrastructure.services.pdf_text_extractor import PdfTextExtractor
 from app.infrastructure import dependencies
 from app.infrastructure.api.v1.schemas.pipeline_status_schema import (
     PipelineState,
@@ -26,10 +27,17 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pipeline"])
 
-# Module-level state — single in-process pipeline at a time
-_pipeline_state: PipelineState = PipelineState.IDLE
-_pipeline_status: PipelineStatusSchema = PipelineStatusSchema(
-    state=PipelineState.IDLE)
+
+def _dto_to_schema(dto: PipelineStatusDTO) -> PipelineStatusSchema:
+    """Convert application DTO to infrastructure Pydantic schema."""
+    return PipelineStatusSchema(
+        state=PipelineState(dto.state.value),
+        total=dto.total,
+        downloaded=dto.downloaded,
+        skipped=dto.skipped,
+        failed=dto.failed,
+        error=dto.error,
+    )
 
 
 def _build_dependencies() -> tuple[LicitationApiPort, TenderRepositoryPort]:
@@ -42,25 +50,26 @@ def _build_dependencies() -> tuple[LicitationApiPort, TenderRepositoryPort]:
 
 async def _run_pipeline() -> None:
     """Execute the full pipeline via RunPipelineCommandHandler."""
-    global _pipeline_state, _pipeline_status
-
-    _pipeline_state = PipelineState.RUNNING
-    _pipeline_status = PipelineStatusSchema(state=PipelineState.RUNNING)
+    dependencies.pipeline_status_port.update(
+        PipelineStatusDTO(state=PipelineStateEnum.RUNNING)
+    )
 
     try:
-        if filters_module._active_filter is None:
+        filter_config = dependencies.filter_config_port.get()
+        if filter_config is None:
             raise RuntimeError(
                 "No filter configured. Call PUT /api/v1/filters before running the pipeline."
             )
 
-        filter_config = filters_module._active_filter.to_domain()
         log.info("[PIPELINE] Starting with filter: %s", filter_config)
 
         api, repository = _build_dependencies()
         storage = dependencies.document_storage
 
         handler = RunPipelineCommandHandler(
-            api=api, repository=repository, storage=storage)
+            api=api, repository=repository, storage=storage,
+            pdf_extractor=PdfTextExtractor(),
+        )
         report = await handler.handle(RunPipelineCommand(filter_config=filter_config))
 
         report_id = str(uuid.uuid4())
@@ -68,15 +77,15 @@ async def _run_pipeline() -> None:
 
         # Stage: narrative analysis via AnalysisService
         try:
-            # pdf_paths: collect file_path from any Document entities stored during
-            # the download stage. Currently document storage is not wired to
-            # ScoredTender, so we pass an empty list — the agent will analyse
-            # based on the tender metadata alone.
-            pdf_paths: list[str] = []
+            all_pdf_paths: list[str] = []
+            if storage:
+                for st in report.scored_tenders:
+                    docs = await storage.list_documents(st.tender.expedient_id)
+                    all_pdf_paths.extend(d.file_path for d in docs if d.file_path)
             analysis_service = AnalysisService()
             analysis_text = await analysis_service.analyze(
                 scored_tenders=report.scored_tenders,
-                pdf_paths=pdf_paths,
+                pdf_paths=all_pdf_paths,
             )
             reports_router.add_analysis(report_id, analysis_text)
         except Exception as exc:
@@ -85,19 +94,17 @@ async def _run_pipeline() -> None:
         total = len(report.scored_tenders)
         log.info(
             "[PIPELINE] Completed. Scored %d tenders. Report id: %s", total, report_id)
-        _pipeline_state = PipelineState.COMPLETED
-        _pipeline_status = PipelineStatusSchema(
-            state=PipelineState.COMPLETED,
+        dependencies.pipeline_status_port.update(PipelineStatusDTO(
+            state=PipelineStateEnum.COMPLETED,
             total=total,
             downloaded=total,
-        )
+        ))
 
     except Exception as exc:
         log.exception("[PIPELINE] Failed: %s", exc)
-        _pipeline_state = PipelineState.FAILED
-        _pipeline_status = PipelineStatusSchema(
-            state=PipelineState.FAILED, error=str(exc)
-        )
+        dependencies.pipeline_status_port.update(PipelineStatusDTO(
+            state=PipelineStateEnum.FAILED, error=str(exc)
+        ))
 
 
 @router.post("/pipeline/run", status_code=202, response_model=PipelineStatusSchema)
@@ -106,17 +113,17 @@ async def run_pipeline(background_tasks: BackgroundTasks) -> PipelineStatusSchem
 
     Returns 409 if a pipeline is already running.
     """
-    global _pipeline_state, _pipeline_status
-
-    if _pipeline_state == PipelineState.RUNNING:
+    current = dependencies.pipeline_status_port.get()
+    if current.state == PipelineStateEnum.RUNNING:
         raise HTTPException(status_code=409, detail="Pipeline already running")
 
     background_tasks.add_task(_run_pipeline)
-    _pipeline_status = PipelineStatusSchema(state=PipelineState.RUNNING)
-    return _pipeline_status
+    running_dto = PipelineStatusDTO(state=PipelineStateEnum.RUNNING)
+    dependencies.pipeline_status_port.update(running_dto)
+    return _dto_to_schema(running_dto)
 
 
 @router.get("/pipeline/status", response_model=PipelineStatusSchema)
 async def get_pipeline_status() -> PipelineStatusSchema:
     """Return the current pipeline state and progress counters."""
-    return _pipeline_status
+    return _dto_to_schema(dependencies.pipeline_status_port.get())

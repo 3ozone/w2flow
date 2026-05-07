@@ -6,7 +6,35 @@
 
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold text-gray-900">Licitacions</h1>
-    <span class="text-sm text-gray-400">{{ tenders | length }} registres</span>
+    <span id="results-count" class="text-sm text-gray-400">{{ tenders | length }} registres</span>
+  </div>
+
+  <!-- Search + filter bar -->
+  <div class="flex flex-col sm:flex-row gap-3">
+    <input
+      id="search-input"
+      type="text"
+      placeholder="Cerca per títol o òrgan…"
+      class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      oninput="filterAndPaginate()"
+    />
+    <select
+      id="semaforo-filter"
+      class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      onchange="filterAndPaginate()">
+      <option value="">Tots els semàfors</option>
+      <option value="green">🟢 Verd</option>
+      <option value="yellow">🟡 Groc</option>
+      <option value="red">🔴 Vermell</option>
+    </select>
+    <select
+      id="page-size"
+      class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      onchange="currentPage=1; filterAndPaginate()">
+      <option value="20" selected>20 per pàgina</option>
+      <option value="50">50 per pàgina</option>
+      <option value="100">100 per pàgina</option>
+    </select>
   </div>
 
   {% if tenders %}
@@ -14,86 +42,113 @@
     <table class="min-w-full divide-y divide-gray-200 text-sm">
       <thead class="bg-gray-50">
         <tr>
-          <th class="px-4 py-3 text-left font-semibold text-gray-500 w-8"></th>
           <th class="px-4 py-3 text-left font-semibold text-gray-500">Títol</th>
           <th class="px-4 py-3 text-left font-semibold text-gray-500">Òrgan</th>
           <th class="px-4 py-3 text-right font-semibold text-gray-500">Pressupost</th>
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Puntuació</th>
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Semàfor</th>
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Data</th>
-          <th class="px-4 py-3 text-center font-semibold text-gray-500">Docs</th>
           <th class="px-4 py-3 text-center font-semibold text-gray-500">Accions</th>
         </tr>
       </thead>
+      <tbody id="tenders-tbody" class="divide-y divide-gray-100">
       {% for st in tenders %}
-      {% set tid = st.tender.expedient_id %}
-      {% set tl = st.score.assign_traffic_light().value %}
-      <tbody id="tender-{{ tid }}" class="divide-y divide-gray-100">
-        <!-- Tender row -->
-        <tr class="hover:bg-gray-50 cursor-pointer"
-            hx-get="/partials/tenders/{{ tid }}/documents"
-            hx-target="#docs-{{ tid }}"
-            hx-swap="outerHTML"
-            hx-trigger="click"
-            hx-indicator="#spinner-{{ tid }}">
-          <td class="px-4 py-3 text-gray-300">
-            <span id="spinner-{{ tid }}" class="htmx-indicator animate-spin">⟳</span>
-            <span class="htmx-settle">▶</span>
-          </td>
-          <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate" title="{{ st.tender.titol }}">
-            {{ st.tender.titol }}
-          </td>
-          <td class="px-4 py-3 text-gray-600 max-w-xs truncate" title="{{ st.tender.organ }}">
-            {{ st.tender.organ }}
-          </td>
-          <td class="px-4 py-3 text-right text-gray-700 tabular-nums">
-            {{ "{:,.0f}".format(st.tender.pressupost) }} €
-          </td>
-          <td class="px-4 py-3 text-center font-semibold
-            {% if st.score.total >= 60 %}text-green-600
-            {% elif st.score.total >= 30 %}text-yellow-600
-            {% else %}text-red-500{% endif %}">
-            {{ st.score.total }}
-          </td>
-          <td class="px-4 py-3 text-center text-lg">
-            {% if tl == "green" %}🟢
-            {% elif tl == "yellow" %}🟡
-            {% else %}🔴{% endif %}
-          </td>
-          <td class="px-4 py-3 text-center text-gray-500">
-            {{ st.tender.data_publicacio }}
-          </td>
-          <td class="px-4 py-3 text-center">
-            <button
-              onclick="event.stopPropagation()"
-              hx-get="/partials/tenders/{{ tid }}/documents"
-              hx-target="#docs-{{ tid }}"
-              hx-swap="outerHTML"
-              class="text-indigo-500 hover:text-indigo-700 text-xs underline">
-              📎 veure
-            </button>
-          </td>
-          <td class="px-4 py-3 text-center">
-            <button
-              onclick="event.stopPropagation()"
-              hx-delete="/api/v1/tenders/{{ tid }}"
-              hx-confirm="Eliminar la licitació '{{ st.tender.titol[:60] }}'? Aquesta acció no es pot desfer."
-              hx-on::after-request="if(event.detail.successful) document.getElementById('tender-{{ tid }}').remove()"
-              class="text-red-400 hover:text-red-600 text-xs" title="Eliminar">
-              🗑
-            </button>
-          </td>
-        </tr>
-
-        <!-- Expandable documents row (initially empty) -->
-        <tr>
-          <td colspan="9" class="p-0">
-            <div id="docs-{{ tid }}"></div>
-          </td>
-        </tr>
-      </tbody>
+      {% set tid = st.expedient_id %}
+      {% set tl = st.score.traffic_light %}
+        <tbody
+          id="tender-{{ tid }}"
+          data-title="{{ st.titol | lower }}"
+          data-organ="{{ st.organ | lower }}"
+          data-tl="{{ tl }}"
+          class="divide-y divide-gray-100 tender-group">
+          <!-- Tender row -->
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate" title="{{ st.titol }}">
+              {{ st.titol }}
+            </td>
+            <td class="px-4 py-3 text-gray-600 max-w-xs truncate" title="{{ st.organ }}">
+              {{ st.organ }}
+            </td>
+            <td class="px-4 py-3 text-right text-gray-700 tabular-nums">
+              {% if st.pressupost is not none %}{{ "{:,.0f}".format(st.pressupost) }} €{% else %}<span class="text-gray-400">—</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-center font-semibold
+              {% if st.score.total >= 60 %}text-green-600
+              {% elif st.score.total >= 30 %}text-yellow-600
+              {% else %}text-red-500{% endif %}">
+              {{ st.score.total }}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold
+                {% if tl == 'green' %}bg-green-100 text-green-700
+                {% elif tl == 'yellow' %}bg-yellow-100 text-yellow-700
+                {% else %}bg-red-100 text-red-600{% endif %}">
+                ●
+                {% if tl == 'green' %}Verd{% elif tl == 'yellow' %}Groc{% else %}Vermell{% endif %}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-center text-gray-500">
+              {{ st.data_publicacio }}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <div class="flex items-center justify-center gap-3">
+                <button
+                  hx-get="/partials/tenders/{{ tid }}/documents"
+                  hx-target="#docs-{{ tid }}"
+                  hx-swap="outerHTML"
+                  class="text-indigo-500 hover:text-indigo-700 text-xs underline">
+                  📎 Docs
+                </button>
+                <button
+                  hx-delete="/api/v1/tenders/{{ tid }}"
+                  hx-confirm="Eliminar la licitació '{{ st.titol[:60] }}'? Aquesta acció no es pot desfer."
+                  hx-on::after-request="if(event.detail.successful) document.getElementById('tender-{{ tid }}').remove(); filterAndPaginate();"
+                  class="text-red-400 hover:text-red-600 text-xs" title="Eliminar">
+                  🗑
+                </button>
+              </div>
+            </td>
+          </tr>
+          <!-- Expandable documents row -->
+          <tr>
+            <td colspan="7" class="p-0">
+              {% if st.codi_cpv or st.termini_execucio or st.data_limit_presentacio %}
+              <div class="bg-gray-50 border-t px-4 py-2 text-xs text-gray-500 flex gap-6">
+                {% if st.codi_cpv %}<span><strong>CPV:</strong> {{ st.codi_cpv }}</span>{% endif %}
+                {% if st.termini_execucio %}<span><strong>Termini:</strong> {{ st.termini_execucio }}</span>{% endif %}
+                {% if st.data_limit_presentacio %}<span><strong>Límit presentació:</strong> {{ st.data_limit_presentacio[:10] }}</span>{% endif %}
+              </div>
+              {% endif %}
+              <div id="docs-{{ tid }}"></div>
+            </td>
+          </tr>
+        </tbody>
       {% endfor %}
+      </tbody>
     </table>
+  </div>
+
+  <!-- Empty state for search (hidden by default) -->
+  <div id="no-results" class="hidden rounded-xl border bg-white shadow-sm p-10 text-center text-gray-400">
+    <p class="text-4xl mb-3">🔍</p>
+    <p class="text-base">Cap licitació coincideix amb la cerca.</p>
+  </div>
+
+  <!-- Pagination controls -->
+  <div id="pagination" class="flex items-center justify-between text-sm text-gray-600">
+    <span id="page-info"></span>
+    <div class="flex gap-2">
+      <button id="btn-prev"
+        onclick="currentPage--; filterAndPaginate()"
+        class="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+        ← Anterior
+      </button>
+      <button id="btn-next"
+        onclick="currentPage++; filterAndPaginate()"
+        class="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+        Següent →
+      </button>
+    </div>
   </div>
 
   {% else %}
@@ -105,4 +160,54 @@
   {% endif %}
 
 </div>
+
+<script>
+  let currentPage = 1;
+
+  function filterAndPaginate() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const tl    = document.getElementById('semaforo-filter').value;
+    const size  = parseInt(document.getElementById('page-size').value, 10);
+
+    const groups = Array.from(document.querySelectorAll('.tender-group'));
+
+    // Filter
+    const visible = groups.filter(g => {
+      const matchText = !query || g.dataset.title.includes(query) || g.dataset.organ.includes(query);
+      const matchTl   = !tl   || g.dataset.tl === tl;
+      return matchText && matchTl;
+    });
+
+    // Hide all first
+    groups.forEach(g => g.style.display = 'none');
+
+    // Pagination
+    const total = visible.length;
+    const totalPages = Math.max(1, Math.ceil(total / size));
+    currentPage = Math.min(currentPage, totalPages);
+
+    const start = (currentPage - 1) * size;
+    visible.slice(start, start + size).forEach(g => g.style.display = '');
+
+    // Update count
+    document.getElementById('results-count').textContent = total + ' registres';
+
+    // No-results state
+    document.getElementById('no-results').classList.toggle('hidden', total > 0);
+
+    // Page info
+    document.getElementById('page-info').textContent =
+      total > 0 ? `Pàgina ${currentPage} de ${totalPages} (${total} resultats)` : '';
+
+    // Prev/Next buttons
+    document.getElementById('btn-prev').disabled = currentPage <= 1;
+    document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+    // Hide pagination when only 1 page
+    document.getElementById('pagination').style.display = totalPages <= 1 ? 'none' : 'flex';
+  }
+
+  // Init on load
+  filterAndPaginate();
+</script>
 {% endblock %}

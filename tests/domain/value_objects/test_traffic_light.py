@@ -29,24 +29,24 @@ class TestTrafficLight:
         assert len(values) == len(set(values))
 
     def test_from_score_returns_green_at_threshold(self):
-        """from_score(50) must return GREEN (lower boundary)."""
-        assert TrafficLight.from_score(50) == TrafficLight.GREEN
-
-    def test_from_score_returns_green_above_threshold(self):
-        """from_score(70) must return GREEN."""
+        """from_score(70) must return GREEN (lower boundary per RN-03)."""
         assert TrafficLight.from_score(70) == TrafficLight.GREEN
 
+    def test_from_score_returns_green_above_threshold(self):
+        """from_score(100) must return GREEN."""
+        assert TrafficLight.from_score(100) == TrafficLight.GREEN
+
     def test_from_score_returns_yellow_at_threshold(self):
-        """from_score(25) must return YELLOW (lower boundary)."""
-        assert TrafficLight.from_score(25) == TrafficLight.YELLOW
+        """from_score(40) must return YELLOW (lower boundary per RN-03)."""
+        assert TrafficLight.from_score(40) == TrafficLight.YELLOW
 
     def test_from_score_returns_yellow_below_green(self):
-        """from_score(49) must return YELLOW (just below GREEN threshold)."""
-        assert TrafficLight.from_score(49) == TrafficLight.YELLOW
+        """from_score(69) must return YELLOW (just below GREEN threshold)."""
+        assert TrafficLight.from_score(69) == TrafficLight.YELLOW
 
     def test_from_score_returns_red_just_below_yellow(self):
-        """from_score(24) must return RED (just below YELLOW threshold)."""
-        assert TrafficLight.from_score(24) == TrafficLight.RED
+        """from_score(39) must return RED (just below YELLOW threshold per RN-03)."""
+        assert TrafficLight.from_score(39) == TrafficLight.RED
 
     def test_from_score_returns_red_at_zero(self):
         """from_score(0) must return RED."""

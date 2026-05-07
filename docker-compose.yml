@@ -14,7 +14,7 @@ services:
       DOWNLOAD_DIR: /app/downloads
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
-      - downloads_data:/app/downloads
+      - ./downloads:/app/downloads
     depends_on:
       db:
         condition: service_healthy
@@ -48,4 +48,3 @@ services:
 
 volumes:
   postgres_data:
-  downloads_data:

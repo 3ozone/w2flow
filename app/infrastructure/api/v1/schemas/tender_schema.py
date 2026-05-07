@@ -27,12 +27,15 @@ class TenderSchema(BaseModel):
     publicacio_id: int
     titol: str
     organ: str
-    pressupost: float
+    pressupost: float | None
     codi_expedient: str
     fase: str
     data_publicacio: date
     is_go: bool
     score: ScoreSchema
+    codi_cpv: str | None = None
+    termini_execucio: str | None = None
+    data_limit_presentacio: str | None = None
 
     @classmethod
     def from_domain(cls, scored_tender: ScoredTender) -> "TenderSchema":
@@ -57,4 +60,7 @@ class TenderSchema(BaseModel):
                 paraules_clau_trobades=list(s.paraules_clau_trobades),
                 penalitzacions=list(s.penalitzacions),
             ),
+            codi_cpv=t.codi_cpv,
+            termini_execucio=t.termini_execucio,
+            data_limit_presentacio=t.data_limit_presentacio,
         )

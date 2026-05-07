@@ -38,8 +38,8 @@ class Score:
         """Return the traffic light colour based on :attr:`total`.
 
         Returns:
-            :attr:`TrafficLight.GREEN` if total ≥ 50,
-            :attr:`TrafficLight.YELLOW` if total ≥ 25,
+            :attr:`TrafficLight.GREEN` if total \u2265 70,
+            :attr:`TrafficLight.YELLOW` if total \u2265 40,
             :attr:`TrafficLight.RED` otherwise.
         """
         return TrafficLight.from_score(self.total)
@@ -48,9 +48,9 @@ class Score:
         """Return True if the tender is worth reviewing (not RED).
 
         Returns:
-            ``True`` when :attr:`total` ≥ 25 (YELLOW or GREEN).
+            ``True`` when :attr:`total` \u2265 40 (YELLOW or GREEN, RN-03).
         """
-        return self.total >= 25
+        return self.total >= 40
 
     def to_report(self) -> dict:
         """Serialize the score for inclusion in the comparative report (RF-07).

@@ -11,17 +11,20 @@ class Tender:
     publicacio_id: int
     titol: str
     organ: str
-    pressupost: float
+    pressupost: float | None
     codi_expedient: str
     fase: str
     data_publicacio: date
+    codi_cpv: str | None = None
+    termini_execucio: str | None = None
+    data_limit_presentacio: str | None = None
 
     def __post_init__(self) -> None:
         if not self.expedient_id:
             raise ValueError("expedient_id cannot be empty")
         if not self.titol:
             raise ValueError("titol cannot be empty")
-        if self.pressupost < 0:
+        if self.pressupost is not None and self.pressupost < 0:
             raise ValueError("pressupost cannot be negative")
 
     def is_new(self) -> bool:

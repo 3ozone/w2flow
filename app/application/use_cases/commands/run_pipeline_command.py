@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from app.application.ports.document_storage_port import DocumentStoragePort
 from app.application.ports.licitacion_api_port import LicitationApiPort
+from app.application.ports.pdf_extractor_port import PdfExtractorPort
 from app.application.ports.tender_repository_port import TenderRepositoryPort
 from app.application.use_cases.commands.download_documents_command import (
     DownloadDocumentsCommand,
@@ -49,10 +50,12 @@ class RunPipelineCommandHandler:
         api: LicitationApiPort,
         repository: TenderRepositoryPort,
         storage: DocumentStoragePort,
+        pdf_extractor: PdfExtractorPort | None = None,
     ) -> None:
         self._api = api
         self._repository = repository
         self._storage = storage
+        self._pdf_extractor = pdf_extractor
 
     async def handle(self, command: RunPipelineCommand) -> ComparativeReport:
         """Execute the pipeline and return the resulting ComparativeReport."""
@@ -76,22 +79,41 @@ class RunPipelineCommandHandler:
             api=self._api, storage=self._storage
         )
         scored_tenders = []
+        all_pdf_paths: list[str] = []
         for tender in filtered:
-            documents = await doc_handler.handle(DownloadDocumentsCommand(tender))
-            pdf_paths = [doc.file_path for doc in documents if doc.file_path]
+            docs_with_bytes = await doc_handler.handle(DownloadDocumentsCommand(tender))
+            pdf_paths = [doc.file_path for doc,
+                         _ in docs_with_bytes if doc.file_path]
+            all_pdf_paths.extend(pdf_paths)
             log.info(
                 "[PIPELINE] Tender %s: %d documents downloaded",
                 tender.expedient_id,
-                len(documents),
+                len(docs_with_bytes),
             )
 
-            # Stage 4: score each tender (pdf_texts populated in 6.4)
-            score_handler = ScoreTenderCommandHandler(repository=self._repository)
+            # Extract PDF text from in-memory bytes (no disk re-read needed)
+            pdf_texts: list[str] = []
+            if self._pdf_extractor:
+                for doc, content in docs_with_bytes:
+                    if content:
+                        try:
+                            text = self._pdf_extractor.extract_text(content)
+                            if text:
+                                pdf_texts.append(text)
+                        except Exception as exc:  # noqa: BLE001
+                            log.warning(
+                                "[PIPELINE] Could not extract text from %s: %s",
+                                doc.titol, exc,
+                            )
+
+            # Stage 4: score each tender with real PDF text
+            score_handler = ScoreTenderCommandHandler(
+                repository=self._repository)
             scored = await score_handler.handle(
                 ScoreTenderCommand(
                     tender=tender,
                     filter_config=filter_config,
-                    pdf_texts=[],
+                    pdf_texts=pdf_texts,
                 )
             )
             scored_tenders.append(scored)

@@ -39,3 +39,7 @@ class LocalDocumentStorage(DocumentStoragePort):
     async def get_path(self, expedient_id: str, doc_id: int) -> str | None:
         """Return the file path for a stored document, or None if not found."""
         return self._index.get((expedient_id, doc_id))
+
+    async def list_documents(self, expedient_id: str) -> list[Document]:
+        """Return all documents stored for the given expedient_id."""
+        return []

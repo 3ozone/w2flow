@@ -8,6 +8,72 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 
 ---
 
+## 🚨 Fase 11 — Corrección de RFs (PRIORIDAD MÁXIMA)
+
+> Desviaciones detectadas en la auditoría de requisitos. Se implementan antes de cualquier otra fase.
+> Orden de implementación: RF-05 → RF-06 → RF-03 → RF-02/RF-04
+
+### 11.1 RF-05 — Alimentar PDFs al scorer y al agente Gemini
+
+> **Problema**: Los PDFs se descargan a disco pero `RunPipelineCommandHandler` llama a `ScoreTenderCommand(pdf_texts=[])` y `AnalysisService(pdf_paths=[])` con listas vacías.
+> **Solución**: Leer los bytes de los PDFs descargados y pasarlos al scorer y al agente.
+
+- [x] `TEST` `RunPipelineCommandHandler` — verifica que tras `DownloadDocumentsCommand`, los `pdf_texts` extraídos se pasan a `ScoreTenderCommand` (no vacíos)
+- [x] `TEST` `RunPipelineCommandHandler` — verifica que los `pdf_paths` reales se pasan a `AnalysisService`
+- [x] `IMPL` `RunPipelineCommandHandler` — tras descargar documentos, leer textos PDF con `PdfExtractorPort` y pasarlos a `ScoreTenderCommand` y a `AnalysisService`
+
+### 11.2 RF-06 — Corregir escala de puntuación y umbrales del semáforo (RN-03)
+
+> **Problema**: La escala implementada es 0–70 en vez de 0–100. Los umbrales del semáforo son VERDE≥50/AMARILLO≥25 en lugar de VERDE≥70/AMARILLO≥40 (RN-03).
+> **Solución**: Ajustar `_calculate_score()` y `TrafficLight.from_score()` a la especificación real.
+
+- [x] `TEST` `TrafficLight` — VERDE si score ≥ 70, AMARILLO si ≥ 40, ROJO si < 40
+- [x] `IMPL` `TrafficLight.from_score()` — actualizar umbrales a ≥70 / ≥40 / <40
+- [x] `TEST` `ScoreTenderCommandHandler._calculate_score()` — la puntuación máxima alcanzable es 100 pts
+- [x] `IMPL` `ScoreTenderCommandHandler._calculate_score()` — reescalar criterios para que el máximo sea 100
+
+### 11.3 RF-03 — Motor de filtrado: aplicar `sector_keywords` en `matches()`
+
+> **Problema**: `FilterConfig.sector_keywords` existe pero no se usa en `matches()`.
+
+- [x] `TEST` `FilterConfig.matches()` — licitación con keyword en el título pasa el filtro; sin keyword lo supera igualmente (keywords son bonus, no filtro excluyente); licitación con keyword negativo se descarta
+- [x] `IMPL` `FilterConfig.matches()` — incorporar `sector_keywords` como filtro de refuerzo o criterio de descarte según si son positivos/negativos
+
+### 11.4 RF-02 — Campos faltantes en `Tender`: CPV, plazo, fecha límite
+
+> **Problema**: Faltan `codi_cpv`, `termini_execucio` y `data_limit_presentacio` en la entidad `Tender` y en la API.
+
+- [ ] `TEST` `Tender` — campos `codi_cpv`, `termini_execucio`, `data_limit_presentacio` opcionales (pueden ser None si la API no los devuelve)
+- [ ] `IMPL` `Tender` — añadir campos opcionales `codi_cpv: str | None`, `termini_execucio: str | None`, `data_limit_presentacio: str | None`
+- [ ] `IMPL` `TenderModel` + migración Alembic — añadir columnas nullable a la tabla `tenders`
+- [ ] `IMPL` `DownloadTendersCommandHandler` — mapear los nuevos campos desde la respuesta de la API (si existen)
+- [ ] `IMPL` `tenders.html` — mostrar CPV, plazo y fecha límite en la tabla o en el detalle expandido
+
+### 11.5 RF-04 — Descartar documentos UNKNOWN (RN-02)
+
+> **Problema**: Los documentos `UNKNOWN` se descargan, contradiciendo RN-02.
+
+- [x] `TEST` `DownloadDocumentsCommandHandler` — documentos con `DocumentType.UNKNOWN` no se descargan ni se persisten
+- [x] `IMPL` `DownloadDocumentsCommandHandler` — reintroducir el filtro `if doc_type == DocumentType.UNKNOWN: continue` (con test previo que valide el comportamiento)
+
+### 11.7 RF-05 — AnalysisService: corregir pdf_paths y ampliar extracción NLP (RN-02, RF-05)
+
+> **Problema**: El código muerto `for doc in []` en `pipeline_router.py` hace que `pdf_paths` llegue vacío a `AnalysisService`. Además, el `_SYSTEM_PROMPT` no extrae los 5 elementos definidos en RF-05: solvencia, criterios de adjudicación, partidas principales, condiciones especiales y cláusulas atípicas.
+> **Solución**: Corregir la recolección de paths y actualizar el prompt.
+
+- [x] `TEST` `pipeline_router` (integración) — tras ejecutar el pipeline, `AnalysisService.analyze()` recibe `pdf_paths` no vacíos cuando hay documentos guardados en disco
+- [x] `IMPL` `pipeline_router.py` — eliminar el `for doc in []` y construir `pdf_paths` directamente desde `storage.list_documents()` o desde los bytes guardados
+- [x] `IMPL` `AnalysisService._SYSTEM_PROMPT` — ampliar para extraer explícitamente: solvencia, criterios de adjudicación, partidas principales, condiciones especiales y cláusulas atípicas (RF-05)
+
+### 11.6 RF-01 — Paginación completa (todas las páginas, no solo `page=0`)
+
+> **Problema**: `DownloadTendersCommandHandler` solo solicita `page=0`.
+
+- [ ] `TEST` `DownloadTendersCommandHandler` — cuando la API devuelve resultados en página 0, pide también página 1; para cuando una página devuelve lista vacía
+- [ ] `IMPL` `DownloadTendersCommandHandler` — iterar páginas hasta recibir lista vacía o alcanzar `max_results`
+
+---
+
 ## Fase 0 — Setup del proyecto
 > Sin TDD — son tareas de configuración
 
@@ -408,3 +474,184 @@ Leyenda: `[ ]` pendiente · `[x]` completado · `[~]` en progreso
 - [ ] `REFACTOR` `reports_router.py` — sustituir `_reports` y `_reports_analysis` por llamadas a `ReportRepositoryPort`
 - [ ] `REFACTOR` `pipeline_router.py` — usar `ReportRepositoryPort.save()` y `save_analysis()` en lugar de acceder a `reports_router._reports`
 - [ ] `REFACTOR` `ui_router.py` — usar `ReportRepositoryPort` para las páginas `/reports` y `/reports/{id}`
+
+---
+
+## Fase 12 — Filtrado avanzado (CPV, presupuesto máximo, clasificación, ubicación)
+
+> Mejoras de productividad real: evitar descargar licitaciones fuera del alcance antes incluso de puntarlas.
+> Fuente API: `publicacio.dadesPublicacioLot[0].cpvPrincipal.codi`, `llocExecucio.codiNuts`, `solvenciesEconomiques`, `solvenciesTecniques`.
+
+### 12.1 Filtro por CPV
+
+> Usar el código numérico exacto de la actividad para no perder licitaciones con título mal redactado.
+
+- [x] `TEST` `FilterConfig` — nuevo campo `cpv_codes: list[str]` (vacío = sin filtro); `matches()` descarta si `codi_cpv` del tender no está en la lista cuando la lista no está vacía
+- [x] `IMPL` `FilterConfig` — añadir `cpv_codes: tuple[str, ...] = field(default_factory=tuple)`
+- [ ] `IMPL` `FilterConfigDTO` / `FilterSchema` — exponer `cpv_codes` en API y formulario
+- [ ] `IMPL` `filters.html` — campo input para introducir códigos CPV separados por coma
+- [ ] `IMPL` `score_tender_command.py` — bonus de puntuación si el CPV coincide con alguno de los configurados
+
+### 12.2 Presupuesto máximo
+
+> Excluir contratos que superen la solvencia económica acreditable.
+
+- [x] `TEST` `FilterConfig` — nuevo campo `max_pressupost: float = 0.0` (0 = sin límite); `matches()` descarta si `pressupost > max_pressupost` cuando `max_pressupost > 0`
+- [x] `IMPL` `FilterConfig` — añadir `max_pressupost: float = 0.0`
+- [x] `IMPL` `FilterConfigDTO` / `FilterSchema` — exponer `max_pressupost`
+- [x] `IMPL` `filters.html` — campo input para presupuesto máximo
+
+### 12.3 Filtro por ubicación (NUTS / provincia)
+
+> En construcción, la distancia reduce el margen. Filtrar por código NUTS o provincia.
+
+- [ ] `TEST` `FilterConfig` — nuevo campo `nuts_codes: list[str]` (vacío = sin filtro); `matches()` descarta si `nuts_code` del tender no está en la lista
+- [ ] `IMPL` `Tender` — añadir campo opcional `nuts_code: str | None` (de `llocExecucio.codiNuts`)
+- [ ] `IMPL` `TenderModel` + migración Alembic — columna `nuts_code` nullable
+- [ ] `IMPL` `DownloadTendersCommandHandler` — mapear `nuts_code` desde `dadesPublicacioLot[0].llocExecucio.codiNuts`
+- [ ] `IMPL` `FilterConfig` — añadir `nuts_codes: list[str] = field(default_factory=list)`
+- [ ] `IMPL` `FilterConfigDTO` / `FilterSchema` — exponer `nuts_codes`
+- [ ] `IMPL` `filters.html` — campo input para códigos NUTS (ej. ES511, ES512)
+
+### 12.4 Filtro por clasificación empresarial (Grupo/Categoría)
+
+> Solo puntuar contratos cuyas exigencias de solvencia puedas acreditar.
+
+- [ ] `TEST` `FilterConfig` — nuevo campo `clasificacion_grupos: list[str]` (vacío = sin filtro); `matches()` descarta si ninguno de los grupos requeridos está en la lista
+- [ ] `IMPL` `Tender` — añadir campo `clasificacion_requerida: list[str]` extraído de `solvenciesTecniques[].criteriSolvencia.ca` (texto libre, se parsea best-effort)
+- [ ] `IMPL` `DownloadTendersCommandHandler` — mapear `clasificacion_requerida` desde el detalle
+- [ ] `IMPL` `FilterConfig` — añadir `clasificacion_grupos: list[str] = field(default_factory=list)`
+- [ ] `IMPL` `FilterConfigDTO` / `FilterSchema` — exponer `clasificacion_grupos`
+- [ ] `IMPL` `filters.html` — campo input para grupos de clasificación
+
+---
+
+## Fase 13 — Optimización del pipeline (upsert + skip re-processament)
+
+> Evitar re-descarregar documents i re-puntuar licitacions que no han canviat. Important quan el nombre de licitacions creixi.
+
+### 13.1 Upsert de Tender (actualitza si canvia la fase)
+
+- [ ] `TEST` `TenderRepositoryPort` — nou mètode `find_by_expedient_id(expedient_id) -> Tender | None`
+- [ ] `IMPL` `TenderRepositoryPort` — afegir mètode abstracte `find_by_expedient_id`
+- [ ] `IMPL` `TenderRepository` (PostgreSQL) — implementar `find_by_expedient_id`
+- [ ] `IMPL` `DownloadTendersCommandHandler` — si el tender ja existeix i la fase no ha canviat, saltar-se la descàrrega de detall i reutilitzar el pressupost guardat
+- [ ] `IMPL` `TenderRepository` — convertir `save()` en upsert (actualitza `fase`, `pressupost`, `data_publicacio` si ja existeix)
+
+### 13.2 Skip de documents ja descarregats
+
+- [ ] `TEST` `DownloadDocumentsCommandHandler` — si el fitxer ja existeix a `storage`, no tornar a descarregar
+- [ ] `IMPL` `DocumentStoragePort` — afegir mètode `exists(file_path: str) -> bool`
+- [ ] `IMPL` `LocalDocumentStorage` — implementar `exists()`
+- [ ] `IMPL` `DownloadDocumentsCommandHandler` — comprovar `storage.exists()` abans de descarregar
+
+---
+
+## Fase 14 — Mejoras UX del Frontend
+
+> Revisión de usabilidad detectada en auditoría de templates. Sin cambios en lógica de dominio ni API.
+
+### 14.1 Indicador de página activa en la navbar (alto impacto)
+
+- [x] `IMPL` `base.html` — marcar el link activo del navbar comparando `request.url.path` con cada ruta; estilo diferenciado (`bg-indigo-800` o subrayado)
+- [x] `IMPL` `ui_router.py` — pasar `request` al contexto de todos los templates que usan `base.html`
+
+### 14.2 Fecha de creación en cards de informes (alto impacto)
+
+- [x] `IMPL` `reports.html` — mostrar fecha de creación en cada card de informe
+- [x] `IMPL` `report_detail.html` — mostrar fecha en el header del detalle
+- [x] `IMPL` `ui_router.py` / `reports_router.py` — exponer `created_at` del informe al template
+
+### 14.3 Reducir columnas en tabla de licitaciones (medio)
+
+- [x] `IMPL` `tenders.html` — fusionar columnas "Docs" y "Accions" en una sola; eliminar click en fila completa (confuso), dejarlo solo en el botón
+- [x] `IMPL` `tenders.html` — cambiar emojis semáforo por badges CSS (`<span class="rounded-full ...">`)
+
+### 14.4 Ordenar tabla de informe por puntuación (medio)
+
+- [x] `IMPL` `report_detail.html` — ordenar `report.scored_tenders` por `st.score.total` descendente antes de renderizar
+- [x] `IMPL` `ui_router.py` — ordenar la lista antes de pasarla al template
+
+### 14.5 KPIs básicos en el Dashboard (medio)
+
+- [x] `IMPL` `index.html` — añadir sección de stats rápidos: nº tenders en BD, nº informes generados, último pipeline ejecutado
+- [x] `IMPL` `ui_router.py` — inyectar esos valores en el contexto del dashboard
+
+### 14.6 Columna Recomanació: tooltip en vez de texto completo (bajo)
+
+- [x] `IMPL` `report_detail.html` — truncar el texto de `recomanacio` en la tabla y mostrar el completo en un `title` tooltip o popover
+
+### 14.7 Menú móvil en navbar (bajo)
+
+- [x] `IMPL` `base.html` — añadir hamburger menu para pantallas pequeñas con HTMX o JS mínimo inline
+
+---
+
+## Fase 15 — Redisseny UX (Dashboard com a pantalla central)
+
+> Reorganització de la interfície perquè un tècnic pugui cercar licitacions, veure resultats i revisar l'anàlisi de Gemini tot en una sola pantalla, sense navegar entre pàgines.
+> Cap canvi en lògica de domini ni API — només templates i router de presentació.
+
+### 15.1 Nova navbar: Cerca · Historial · Configuració
+
+- [x] `IMPL` `base.html` — canviar l'ordre i els labels del navbar: `Cerca` (ruta `/`), `Historial` (ruta `/reports`), `Configuració` (ruta `/filters`)
+- [x] `IMPL` `base.html` — eliminar l'entrada `Licitacions` del navbar (els resultats es mostren a la pàgina Cerca)
+
+### 15.2 Dashboard com a formulari de cerca
+
+- [x] `IMPL` `index.html` — substituir els KPIs per un formulari de cerca amb els camps: paraules clau, tipus expedient, fase vigent, pressupost mínim, màx. resultats
+- [x] `IMPL` `index.html` — el formulari fa un `PUT /api/v1/filters` + `POST /api/v1/pipeline/run` en seqüència via HTMX
+- [x] `IMPL` `ui_router.py` — l'endpoint `GET /` passa els valors actuals de `FilterConfig` al template per pre-omplir el formulari
+
+### 15.3 Resultats inline a la pàgina de cerca
+
+- [x] `IMPL` `index.html` — afegir secció de resultats sota el formulari que es carrega via HTMX quan el pipeline acaba
+- [x] `IMPL` `index.html` — mostrar l'anàlisi narratiu de Gemini en un desplegable `<details>` just sobre la llista de licitacions
+- [x] `IMPL` `index.html` — per cada licitació: fila expandible amb desglose de puntuació + botons de documents
+- [x] `IMPL` `partials/search_results.html` — partial nou amb KPIs, Gemini collapsible i taula expandible
+- [x] `IMPL` `ui_router.py` — endpoint `GET /partials/search-results` que retorna l'últim informe com a partial
+
+### 15.4 Pàgina Historial (simplificada)
+
+- [x] `IMPL` `reports.html` — conservar tal com està (llista de cercles anteriors amb data, KPIs i enllaç al detall)
+- [x] `IMPL` `report_detail.html` — conservar tal com està (informe complet amb anàlisi i taula)
+
+### 15.5 Eliminar pàgina Licitacions independent
+
+- [x] `IMPL` `ui_router.py` — deprecar la ruta `GET /tenders` o redirigir a `/`
+- [x] `IMPL` `tenders.html` — pot reutilitzar-se com a partial per als resultats inline o eliminar-se
+
+---
+
+## Fase 16 — Refactor Arquitectura: eliminar accés directe entre routers
+
+> Els routers actuals (`ui_router`, `pipeline_router`) accedeixen al estat intern d'altres routers (`_reports`, `_active_filter`, `_pipeline_status`) violant la regla de dependència de Clean Architecture: "un router mai accedeix al estat intern d'un altre router".
+> Objectiu: introduir ports i query handlers perquè la capa de presentació passi per aplicació.
+
+### 16.1 REFACTOR — Port `FilterConfigPort` + `GetActiveFilterQueryHandler`
+
+> Substituir l'accés directe a `filters_router._active_filter` per un port d'aplicació.
+
+- [x] `TEST` `GetActiveFilterQueryHandler` — retorna `FilterConfig | None`; si no n'hi ha cap, retorna `None`
+- [x] `IMPL` `FilterConfigPort` — ABC a `application/ports/` amb mètodes: `get() -> FilterConfig | None`, `save(fc: FilterConfig) -> None`
+- [x] `IMPL` `InMemoryFilterConfigAdapter` — implementació a `infrastructure/` que guarda el filtre actiu en memòria (substitueix `_active_filter` de `filters_router`)
+- [x] `IMPL` `GetActiveFilterQueryHandler` — handler a `application/use_cases/queries/`
+- [x] `REFACTOR` `filters_router.py` — usar `FilterConfigPort` en lloc de `_active_filter` global
+- [x] `REFACTOR` `ui_router.py` — usar `GetActiveFilterQueryHandler` en lloc de `filters_module._active_filter`
+- [x] `REFACTOR` `pipeline_router.py` — usar `GetActiveFilterQueryHandler` en lloc de `filters_module._active_filter`
+
+### 16.2 REFACTOR — Port `PipelineStatusPort` + `GetPipelineStatusQueryHandler`
+
+> Substituir l'accés directe a `pipeline_router._pipeline_status` per un port d'aplicació.
+
+- [x] `TEST` `GetPipelineStatusQueryHandler` — retorna l'estat actual del pipeline (state, total, downloaded, skipped, error)
+- [x] `IMPL` `PipelineStatusPort` — ABC a `application/ports/` amb mètodes: `get() -> PipelineStatus`, `update(status: PipelineStatus) -> None`
+- [x] `IMPL` `InMemoryPipelineStatusAdapter` — implementació a `infrastructure/` (substitueix `_pipeline_status` de `pipeline_router`)
+- [x] `IMPL` `GetPipelineStatusQueryHandler` — handler a `application/use_cases/queries/`
+- [x] `REFACTOR` `pipeline_router.py` — usar `PipelineStatusPort` en lloc del global `_pipeline_status`
+- [x] `REFACTOR` `ui_router.py` — usar `GetPipelineStatusQueryHandler` en lloc de `pipeline_module._pipeline_status`
+
+### 16.3 REFACTOR — `ReportRepositoryPort` (ja definit a Fase 10, completar aquí si Fase 10 no s'ha fet)
+
+> Substituir l'accés directe a `reports_router._reports` / `_reports_analysis` per `ReportRepositoryPort`.
+> **Nota**: Ja cobert a Fase 10.5. Completar aquí si Fase 10 s'implementa abans d'aquest refactor.

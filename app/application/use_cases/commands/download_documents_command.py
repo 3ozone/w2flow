@@ -28,18 +28,20 @@ class DownloadDocumentsCommandHandler:
         self._api = api
         self._storage = storage
 
-    async def handle(self, command: DownloadDocumentsCommand) -> list[Document]:
+    async def handle(self, command: DownloadDocumentsCommand) -> list[tuple[Document, bytes | None]]:
         """Fetch document metadata, download valid types and persist them.
 
-        Returns a list of Document domain entities with the stored file path.
-        Already-stored documents are returned without re-downloading.
+        Returns a list of (Document, pdf_bytes) tuples. For already-stored
+        documents, pdf_bytes is None. For newly downloaded ones, pdf_bytes
+        contains the raw PDF content so callers can extract text without
+        re-reading from disk.
         """
         tender = command.tender
         raw_docs = await self._api.fetch_documents(
             tender.expedient_id, tender.publicacio_id
         )
 
-        documents: list[Document] = []
+        documents: list[tuple[Document, bytes | None]] = []
 
         for raw in raw_docs:
             doc_id: int = raw["id"]
@@ -48,8 +50,13 @@ class DownloadDocumentsCommandHandler:
             mida_kb: float = float(raw.get("midaKb", 0.0))
             doc_type = DocumentType.from_title(titol)
 
+            if doc_type == DocumentType.UNKNOWN:
+                log.debug("[DOCS] Skipping UNKNOWN document type: %s", titol)
+                continue
+
             if await self._storage.exists(tender.expedient_id, doc_id):
                 file_path = await self._storage.get_path(tender.expedient_id, doc_id)
+                pdf_bytes: bytes | None = None
                 log.debug("[DOCS] Already stored (skip download): %s", titol)
             else:
                 pdf_bytes = await self._api.download_document(doc_id, doc_hash)
@@ -66,7 +73,7 @@ class DownloadDocumentsCommandHandler:
                 log.info("[DOCS] Downloaded and stored: %s -> %s",
                          titol, file_path)
 
-            documents.append(
+            documents.append((
                 Document(
                     expedient_id=tender.expedient_id,
                     doc_id=doc_id,
@@ -75,7 +82,8 @@ class DownloadDocumentsCommandHandler:
                     mida_kb=mida_kb,
                     file_path=file_path,
                     type=doc_type,
-                )
-            )
+                ),
+                pdf_bytes,
+            ))
 
         return documents
