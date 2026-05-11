@@ -1,44 +1,39 @@
+"""Configuració d'Alembic per a les migracions de w2flow.
+
+Importa Base i tots els models per garantir que autogenerate els detecta.
+"""
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
-from app.config import settings
-from app.infrastructure.repositories.models import Base
+from app.config import Settings
+from app.infrastructure.database import Base
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Importem els models perquè SQLAlchemy registri les taules al metadata
+import app.infrastructure.models.tender_model  # noqa: F401
+import app.infrastructure.models.filter_config_model  # noqa: F401
+
+# Objecte de configuració d'Alembic
 config = context.config
 
-# Override sqlalchemy.url with the value from settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Injectem la URL de BD des de Settings (sobreposa la del .ini)
+_settings = Settings()
+config.set_main_option("sqlalchemy.url", _settings.database_url)
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# Configuració de logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Metadata que Alembic compararà per generar les migracions
 target_metadata = Base.metadata
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
+    """Executa les migracions en mode offline (sense connexió real).
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
+    Útil per generar SQL pur sense necessitat d'una BD accessible.
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -47,29 +42,22 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
+    """Executa les migracions en mode online (amb connexió real a PostgreSQL)."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
         )
-
         with context.begin_transaction():
             context.run_migrations()
 

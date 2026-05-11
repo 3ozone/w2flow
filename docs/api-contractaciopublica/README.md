@@ -46,18 +46,33 @@ GET https://contractaciopublica.cat/portal-api/cerca-avancada
 | `ambit` | int | Àmbit organitzatiu (vegeu valors) | `1500001` |
 | `organ` | int | ID de l'organisme contractant | `17277528` |
 | `ambitGeografic` | int | Àmbit geogràfic | `1` |
-| `procedimentAdjudicacio` | int | Procediment (vegeu valors) | `401` |
-| `tipusContracte` | int | Tipus de contracte (vegeu valors) | `395` |
-| `sortField` | text | Camp d'ordenació | `dataUltimaPublicacio` |
-| `sortOrder` | text | `asc` / `desc` | `desc` |
-| `inclourePub licacionsPlacsp` | bool | Incloure publicacions PLACSP | `false` |
+| `procedimentAdjudicacio` | int | Procediment (vegeu valors confirmats) | `401` |
+| `tipusContracte` | int | Tipus de contracte (vegeu valors confirmats) | `395` |
+| `sortField` | text | Camp d'ordenació (**obligatori**) | `dataUltimaPublicacio` |
+| `sortOrder` | text | `asc` / `desc` (**obligatori**) | `desc` |
+| `inclourePublicacionsPlacsp` | bool | Incloure publicacions PLACSP | `false` |
+
+> ⚠️ **`sortField` i `sortOrder` són obligatoris.** Sense ells el servidor retorna HTTP 500 (errorData en Base64). Sempre incloure-los.
 
 ### Valors de `faseVigent`
 
-| Valor | Descripció |
-|---|---|
-| `0` | Anunci de licitació en termini |
-| (altres valors per confirmar amb més captures) | |
+> ✅ **Valors confirmats** via inspecció del tràfic de xarxa del portal (10/05/2026).
+
+> ⚠️ **IMPORTANT**: Els valors del catàleg de Dades Mestres (p.ex. `1000040`) **NO** funcionen en aquest endpoint. El portal utilitza un sistema de valors propi en múltiples de 10. Usar els valors de la taula següent.
+
+> ⚠️ **`faseVigent=0` és Alerta futura**, NO és "sense filtre". Retorna plans anuals de contractació sense documents adjunts.
+
+| Valor | Descripció | Té documents |
+|---|---|---|
+| `0` | Alerta futura | ❌ No |
+| `10` | Consulta preliminar del mercat | ❌ No |
+| `20` | Anunci previ | ⚠️ Parcial |
+| **`30`** | **Anunci de licitació en termini** ← **valor correcte per a w2flow** | ✅ Sí |
+| `40` | Expedient en avaluació | ✅ Sí (ja tancat) |
+| `50` | Adjudicació | ✅ Sí (ja tancat) |
+| `60` | Formalització | ✅ Sí (ja tancat) |
+| `70` | Publicació relativa a l'execució | ✅ Sí (en curs) |
+| `80` | Anul·lació | ❌ No |
 
 ### Valors de `ambit`
 
@@ -69,19 +84,23 @@ GET https://contractaciopublica.cat/portal-api/cerca-avancada
 | `1500004` | Universitats |
 | `1500005` | Altres ens |
 
-### Exemple: licitacions obertes avui de la Generalitat
+### Exemple: licitacions obertes avui de la Generalitat (configuració correcta)
 
 ```http
 GET https://contractaciopublica.cat/portal-api/cerca-avancada
   ?page=0
   &size=20
   &tipusExpedient=1
-  &faseVigent=0
+  &faseVigent=30
   &ambit=1500001
+  &tipusContracte=395
+  &procedimentAdjudicacio=401
   &sortField=dataUltimaPublicacio
   &sortOrder=desc
   &inclourePublicacionsPlacsp=false
 ```
+
+> ✅ **Combinació verificada (10/05/2026)**: retorna licitacions d'obres obertes de la Generalitat de Catalunya amb documents adjunts.
 
 ### Paginació
 
@@ -157,6 +176,54 @@ Resposta paginada d'estil Spring amb la llista a `content[]`.
 > ℹ️ Un item pot tenir diverses fases actives simultàniament si hi ha lots en fases diferents.
 
 > ⚠️ **El token per a `/json-xifrat/` NO apareix en la resposta de `/cerca-avancada`.** Per a w2flow s'utilitza en el seu lloc l'endpoint de detall confirmat (vegeu API 2 bis).
+
+---
+
+## Dades Mestres — valors confirmats ✅
+
+> **Endpoint públic** (sense autenticació):
+> ```
+> GET https://gestio.contractaciopublica.cat/api/integracio/codis-dada-mestra?tipusDM={tipus}
+> ```
+> Confirmat el 09/05/2026. Retorna JSON `[{id, nom, codi}]`.
+
+### `tipusContracte` (paràmetre `tipusContracte` a `/cerca-avancada`)
+
+| id | nom |
+|---|---|
+| `395` | Obres ← **rellevant per a w2flow (construcció/enginyeria)** |
+| `393` | Serveis |
+| `394` | Subministraments |
+| `398` | Concessió d'obres |
+| `396` | Concessió de serveis |
+| `397` | Administratiu especial |
+| `1000007` | Contracte de serveis especials (annex IV) |
+| `1008217` | Concessió de serveis especials (annex IV) |
+
+### `procedimentAdjudicacio` (paràmetre `procedimentAdjudicacio` a `/cerca-avancada`)
+
+| id | nom |
+|---|---|
+| `401` | Obert ← **principal per a w2flow** |
+| `419` | Obert simplificat |
+| `1000008` | Obert simplificat abreujat |
+| `402` | Restringit |
+| `404` | Licitació amb negociació |
+| `421` | Negociat sense publicitat |
+| `405` | Diàleg competitiu |
+| `1000010` | Concurs de projectes |
+| `1000011` | Associació per a la innovació |
+| `403` | Contracte menor |
+| `1000012` | Altres procediments segons instruccions internes |
+| `1008211` | Adjudicacions directes no menors |
+
+### `tipusTramitacio` (camp de detall, no paràmetre de cerca)
+
+| id | nom |
+|---|---|
+| `470` | Ordinària |
+| `471` | Urgència |
+| `469` | Emergència |
 
 > 📄 Exemple complet de resposta: [`cerca-avancada-response.json`](./cerca-avancada-response.json)
 

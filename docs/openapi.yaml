@@ -2,22 +2,336 @@ openapi: 3.1.0
 
 info:
   title: w2flow API
-  description: API para la descarga, filtrado y puntuación de licitaciones públicas de contractaciopublica.cat
-  version: 1.0.0
+  description: API per a la descàrrega, filtrat i puntuació de licitacions públiques de contractaciopublica.cat
+  version: 0.3.0
 
 servers:
-  - url: http://localhost:8000/api/v1
-    description: Desarrollo local
+  - url: http://localhost:8000
+    description: Desenvolupament local
 
 tags:
   - name: pipeline
-    description: Ejecución y estado del proceso batch
+    description: Execució del pipeline de licitacions
   - name: filters
-    description: Configuración de filtros de selección
+    description: Gestió de configuracions de filtre
   - name: tenders
-    description: Licitaciones evaluadas
-  - name: reports
-    description: Informes comparativos
+    description: Consulta de licitacions persistides
+
+paths:
+
+  # ── Pipeline ────────────────────────────────────────────────────
+
+  /api/v1/pipeline/run:
+    post:
+      tags: [pipeline]
+      summary: Executa el pipeline complet
+      description: |
+        Obté la FilterConfig activa, descarrega licitacions, aplica filtres,
+        analitza documents amb NLP, puntua i retorna el report complet.
+      responses:
+        "200":
+          description: Report generat correctament
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "404":
+          description: No hi ha cap configuració de filtre activa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Error de comunicació amb l'API de contractació pública
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Error intern del servidor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Filters ─────────────────────────────────────────────────────
+
+  /api/v1/filters:
+    get:
+      tags: [filters]
+      summary: Historial de configuracions de filtre
+      description: Retorna totes les configuracions ordenades de més recent a més antiga.
+      responses:
+        "200":
+          description: Llista de configuracions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FilterConfig"
+
+    post:
+      tags: [filters]
+      summary: Crea una nova configuració de filtre
+      description: |
+        Crea una nova FilterConfig i la marca com a activa.
+        Desactiva automàticament qualsevol configuració activa anterior.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FilterConfigRequest"
+      responses:
+        "201":
+          description: Configuració creada i activada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilterConfig"
+        "422":
+          description: Dades de la configuració invàlides
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/filters/active:
+    get:
+      tags: [filters]
+      summary: Retorna la configuració de filtre activa
+      responses:
+        "200":
+          description: Configuració activa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilterConfig"
+        "404":
+          description: No hi ha cap configuració activa
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  # ── Tenders ─────────────────────────────────────────────────────
+
+  /api/v1/tenders:
+    get:
+      tags: [tenders]
+      summary: Llista de licitacions persistides
+      description: Retorna totes les licitacions ja processades pel pipeline, ordenades per data_limit descendent.
+      responses:
+        "200":
+          description: Llista de licitacions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tender"
+
+# ── Schemas ───────────────────────────────────────────────────────
+
+components:
+  schemas:
+
+    TrafficLight:
+      type: string
+      enum: [green, yellow, red]
+      description: "green ≥70 · yellow 40-69 · red <40"
+
+    FilterConfigRequest:
+      type: object
+      required:
+        - tipus_expedient
+      properties:
+        tipus_expedient:
+          type: integer
+          description: Tipus d'expedient (p.ex. 1 = obra, 2 = serveis)
+        fase_vigent:
+          type: integer
+          default: 30
+          description: >-
+            Fase vigent de la licitació. 30 = Anunci de licitació en termini (RN-14).
+            Valors vàlids: 0=Alerta futura, 30=Anunci licitació, 40=En avaluació,
+            50=Adjudicació, 60=Formalització. Els IDs del catàleg de Dades Mestres
+            (p.ex. 1000040) NO funcionen en aquest endpoint.
+        ambit:
+          type: integer
+          nullable: true
+          default: 1500001
+          description: Àmbit geogràfic. 1500001 = Generalitat de Catalunya (RN-14)
+        tipus_contracte:
+          type: integer
+          nullable: true
+          default: 395
+          description: Tipus de contracte. 395 = Obres (RN-14)
+        procediment_adjudicacio:
+          type: integer
+          nullable: true
+          default: 401
+          description: Procediment d'adjudicació. 401 = Obert (RN-14)
+        cpv_codes:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Codis CPV permesos. Buit = sense filtre (RN-07)
+        pressupost_maxim:
+          type: number
+          default: 0.0
+          description: Pressupost màxim en EUR. 0.0 = sense límit (RN-08)
+        nuts_codes:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Codis NUTS permesos. Buit = sense filtre (RN-09)
+        classifications:
+          type: array
+          items:
+            type: string
+          default: []
+          description: Grups empresarials permesos. Buit = sense filtre (RN-10)
+        durada_minima_dies:
+          type: integer
+          default: 0
+          description: Durada mínima en dies. 0 = sense límit inferior (RN-11)
+        durada_maxima_dies:
+          type: integer
+          default: 0
+          description: Durada màxima en dies. 0 = sense límit superior (RN-11)
+        max_licitacions:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+          description: Nombre màxim de licitacions a processar per execució (RN-13)
+
+    FilterConfig:
+      allOf:
+        - $ref: "#/components/schemas/FilterConfigRequest"
+
+    Tender:
+      type: object
+      properties:
+        expedient_id:
+          type: string
+          description: Identificador únic de l'expedient (UUID)
+        publicacio_id:
+          type: integer
+          description: Identificador numèric de la publicació
+        organ:
+          type: string
+          description: Nom de l'òrgan de contractació
+        titol:
+          type: string
+          description: Títol de la licitació
+        codi_expedient:
+          type: string
+          nullable: true
+          description: Codi intern assignat per l'òrgan
+        pressupost:
+          type: number
+          nullable: true
+          description: Pressupost base sense IVA en EUR
+        cpv_principal:
+          type: string
+          nullable: true
+          description: Codi CPV principal (p.ex. "45000000-7")
+        data_limit:
+          type: string
+          format: date-time
+          nullable: true
+          description: Termini de presentació d'ofertes
+        durada_dies:
+          type: integer
+          nullable: true
+          description: Durada estimada en dies
+        tipus_contracte_id:
+          type: integer
+          nullable: true
+        procediment_id:
+          type: integer
+          nullable: true
+        nuts_code:
+          type: string
+          nullable: true
+          description: Codi NUTS del lloc d'execució (p.ex. "ES512")
+        classifications:
+          type: array
+          items:
+            type: string
+          description: Grups de classificació empresarial requerits
+
+    ScoredTenderDTO:
+      type: object
+      properties:
+        expedient_id:
+          type: string
+        titol:
+          type: string
+        organ:
+          type: string
+        pressupost:
+          type: number
+          nullable: true
+        total:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Puntuació total NLP
+        traffic_light:
+          $ref: "#/components/schemas/TrafficLight"
+        detall:
+          type: object
+          description: Desglose de puntuació per criteri (RN-12)
+          properties:
+            solvencia:
+              type: integer
+              minimum: 0
+              maximum: 30
+            criteris_adjudicacio:
+              type: integer
+              minimum: 0
+              maximum: 25
+            clausules_atipiques:
+              type: integer
+              minimum: 0
+              maximum: 20
+            procediment:
+              type: integer
+              minimum: 0
+              maximum: 15
+            condicions_execucio:
+              type: integer
+              minimum: 0
+              maximum: 10
+
+    ReportDTO:
+      type: object
+      properties:
+        tenders:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoredTenderDTO"
+          description: Totes les licitacions puntuades (viables i no viables)
+        total_candidates:
+          type: integer
+          description: Nombre total de licitacions candidates processades
+        total_viable:
+          type: integer
+          description: Nombre de licitacions amb puntuació >= 40
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Descripció de l'error
+
 
 paths:
 

@@ -1,113 +1,301 @@
-"""HTTP client for the contractaciopublica.cat portal API."""
-
-from __future__ import annotations
-
+"""Implementació HTTP del port TenderApiPort per a contractaciopublica.cat (RF-01, RF-02, RF-04)."""
+from app.domain.value_objects.document_type import DocumentType
+from app.domain.entities.tender import Tender
+from app.domain.entities.document import Document
+from app.application.ports.tender_api_port import TenderApiPort
+from app.application.exceptions.application_errors import TenderApiError
 import logging
-from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import httpx
 
-from app.application.ports.licitacion_api_port import LicitationApiPort
-from app.domain.exceptions.download_error import DownloadError
-from app.domain.value_objects.filter_config import FilterConfig
-
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
-class ContractacioPublicaClient(LicitationApiPort):
-    """Implements LicitationApiPort using httpx against contractaciopublica.cat."""
+_DOCUMENT_SECTIONS = [
+    "plecsDeClausulesAdministratives",
+    "plecsDePrescripcionsTecniques",
+    "memoriaJustificativaContracte",
+    "annexos",
+    "altresDocuments",
+]
 
-    def __init__(self, base_url: str, timeout: int = 30) -> None:
+
+class ContractacioPublicaClient(TenderApiPort):
+    """Client HTTP síncron per a l'API de contractaciopublica.cat.
+
+    Implementa TenderApiPort fent crides a:
+      - GET /cerca-avancada          → llista paginada de licitacions
+      - GET /detall-publicacio-expedient/{exp_id}/{pub_id} → detall complet
+      - GET /descarrega-document/{doc_id}/{hash}           → bytes del PDF
+
+    Attributes:
+        _base_url:    URL base de l'API (sense barra final).
+        _timeout:     Temps màxim d'espera per resposta en segons.
+        _max_retries: Nombre màxim de reintents en cas d'error de xarxa.
+    """
+
+    def __init__(self, base_url: str, timeout: int = 30, max_retries: int = 2) -> None:
+        """Inicialitza el client amb la configuració de connexió.
+
+        Args:
+            base_url:    URL base de l'API (p.ex. 'https://contractaciopublica.cat/portal-api').
+            timeout:     Temps màxim d'espera per resposta en segons.
+            max_retries: Nombre màxim de reintents en cas d'error de xarxa.
+        """
         self._base_url = base_url.rstrip("/")
-        self._http_client = httpx.AsyncClient(timeout=timeout)
+        self._timeout = timeout
+        self._max_retries = max_retries
 
-    @asynccontextmanager
-    async def _http_errors(self, context: str) -> AsyncIterator[None]:
-        """Wrap httpx errors into DownloadError with context info."""
+    # ---------------------------------------------------------------------------
+    # Implementació del port
+    # ---------------------------------------------------------------------------
+
+    def fetch_tenders(self, params: dict) -> list[Tender]:
+        """Cerca licitacions a l'API i retorna la pàgina de resultats com a Tenders.
+
+        Descarta els ítems que només tenen la fase ALERTA_FUTURA, perquè no disposen
+        de documents i provocarien que el NLP retornés score = 0 (RN-15).
+
+        Args:
+            params: Paràmetres de query string per a /cerca-avancada.
+
+        Returns:
+            Llista de Tender construïts a partir del camp 'content' de la resposta,
+            filtrant els ítems sense ANUNCI_LICITACIO.
+
+        Raises:
+            TenderApiError: Si la crida HTTP falla o la resposta és inesperada.
+        """
+        data = self._get("/cerca-avancada", params=params)
+        all_items = data.get("content", [])
+        logger.info("[API] Rebuts %d ítems de /cerca-avancada", len(all_items))
+
+        result = []
+        for item in all_items:
+            if self._te_anunci_licitacio(item):
+                result.append(self._parse_tender(item))
+            else:
+                logger.debug(
+                    "[API] Descartat (sense ANUNCI_LICITACIO): expedientId=%s fases=%s",
+                    item.get("expedientId"), list(
+                        (item.get("fasesVigents") or {}).keys()),
+                )
+
+        logger.info("[API] %d ítems passen el filtre ANUNCI_LICITACIO (descartats %d)",
+                    len(result), len(all_items) - len(result))
+        return result
+
+    def fetch_documents(self, expedient_id: str, publicacio_id: int) -> list[Document]:
+        """Obté la llista de documents d'una licitació des del seu detall.
+
+        Args:
+            expedient_id:  UUID de l'expedient.
+            publicacio_id: Identificador numèric de la publicació.
+
+        Returns:
+            Llista de Document extrets de les seccions conegudes del JSON.
+
+        Raises:
+            TenderApiError: Si la crida HTTP falla.
+        """
+        data = self._get(
+            f"/detall-publicacio-expedient/{expedient_id}/{publicacio_id}")
+        return self._extract_documents(expedient_id, data)
+
+    def download_document(self, doc_id: int, hash: str) -> bytes:  # noqa: A002
+        """Descarrega els bytes d'un document PDF.
+
+        Args:
+            doc_id: Identificador numèric del document.
+            hash:   Hash MD5 (hex) del document, usat per construir l'URL.
+
+        Returns:
+            Bytes del fitxer PDF.
+
+        Raises:
+            TenderApiError: Si la descàrrega falla.
+        """
+        return self._get_bytes(f"/descarrega-document/{doc_id}/{hash}")
+
+    # ---------------------------------------------------------------------------
+    # Mètodes auxiliars de transport HTTP
+    # ---------------------------------------------------------------------------
+
+    def _get(self, path: str, params: dict | None = None) -> dict:
+        """Fa una crida GET i retorna el JSON deserialitzat.
+
+        Args:
+            path:   Path relatiu a _base_url (amb barra inicial).
+            params: Paràmetres de query string opcionals.
+
+        Returns:
+            Diccionari JSON de la resposta.
+
+        Raises:
+            TenderApiError: Si la crida falla o el servidor retorna un error HTTP.
+        """
+        url = f"{self._base_url}{path}"
         try:
-            yield
+            with httpx.Client(timeout=self._timeout) as client:
+                response = client.get(url, params=params)
+                response.raise_for_status()
+                return response.json()
         except httpx.HTTPError as exc:
-            raise DownloadError(f"{context}: {exc}") from exc
+            raise TenderApiError(str(exc)) from exc
 
-    async def fetch_page(self, filter_config: FilterConfig, page: int) -> list[dict]:
-        """Fetch a single page of tender summaries from the API."""
-        params = {
-            "tipusExpedient": filter_config.tipus_expedient,
-            "faseVigent": filter_config.fase_vigent,
-            "page": page,
-            "size": filter_config.max_results,
-            "sortField": "dataUltimaPublicacio",
-            "sortOrder": "desc",
-        }
-        log.debug("[HTTP] GET cerca-avancada page=%d params=%s", page, params)
-        async with self._http_errors(f"fetch_page(page={page})"):
-            response = await self._http_client.get(
-                f"{self._base_url}/cerca-avancada",
-                params=params,
-            )
-            response.raise_for_status()
-            result = response.json().get("content", [])
-            log.debug("[HTTP] cerca-avancada → %d items", len(result))
-            return result
+    def _get_bytes(self, path: str) -> bytes:
+        """Fa una crida GET i retorna el contingut en bytes (per PDFs).
 
-    async def fetch_detail(self, expedient_id: str, publicacio_id: int) -> dict:
-        """Fetch full detail for a single tender."""
-        async with self._http_errors(f"fetch_detail({expedient_id}/{publicacio_id})"):
-            response = await self._http_client.get(
-                f"{self._base_url}/detall-publicacio-expedient"
-                f"/{expedient_id}/{publicacio_id}",
-            )
-            response.raise_for_status()
-            return response.json()
+        Args:
+            path: Path relatiu a _base_url (amb barra inicial).
 
-    async def fetch_documents(self, expedient_id: str, publicacio_id: int) -> list[dict]:
-        """Return all downloadable documents for a tender (recursive DFS over dades)."""
-        log.info("[HTTP] GET detall-publicacio-expedient/%s/%s (docs)",
-                 expedient_id, publicacio_id)
-        async with self._http_errors(f"fetch_documents({expedient_id}/{publicacio_id})"):
-            response = await self._http_client.get(
-                f"{self._base_url}/detall-publicacio-expedient"
-                f"/{expedient_id}/{publicacio_id}",
-            )
-            response.raise_for_status()
-            data = response.json()
+        Returns:
+            Bytes de la resposta.
 
-        dades = data.get("dades") or {}
-        docs = self._extract_documents(dades)
-        log.info("[HTTP] fetch_documents → %d docs found for %s",
-                 len(docs), expedient_id)
-        return docs
+        Raises:
+            TenderApiError: Si la crida falla o el servidor retorna un error HTTP.
+        """
+        url = f"{self._base_url}{path}"
+        try:
+            with httpx.Client(timeout=self._timeout) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                return response.content
+        except httpx.HTTPError as exc:
+            raise TenderApiError(str(exc)) from exc
+
+    # ---------------------------------------------------------------------------
+    # Mètodes de parseo del JSON
+    # ---------------------------------------------------------------------------
+
+    # Fases que indiquen que l'expedient té documents i pot ser processat (RN-15).
+    # 'ANUNCI_EN_TERMINI' és el nom real que retorna l'API per a faseVigent=30
+    # (descobert via logs el 10/05/2026 — diferent del catàleg de Dades Mestres).
+    _FASES_AMB_DOCUMENTS = frozenset({"ANUNCI_LICITACIO", "ANUNCI_EN_TERMINI"})
+
+    @classmethod
+    def _te_anunci_licitacio(cls, item: dict) -> bool:
+        """Retorna True si l'ítem té alguna fase activa amb documents (RN-15).
+
+        Accepta 'ANUNCI_LICITACIO' i 'ANUNCI_EN_TERMINI' (nom real de l'API
+        per a faseVigent=30). Els ítems sense 'fasesVigents' (legacy) es
+        conserven per compatibilitat. Els que NOMÉS tenen 'ALERTA_FUTURA'
+        es descarten perquè no disposen de documents.
+
+        Args:
+            item: Element del camp 'content' de /cerca-avancada.
+
+        Returns:
+            True si s'ha de conservar l'ítem, False si s'ha de descartar.
+        """
+        fases = item.get("fasesVigents")
+        if fases is None:
+            return True
+        return bool(cls._FASES_AMB_DOCUMENTS & fases.keys())
+
+    @classmethod
+    def _parse_tender(cls, item: dict) -> Tender:
+        """Construeix un Tender a partir d'un element del llistat /cerca-avancada.
+
+        Cerca 'idPublicacio' a la primera fase activa trobada (ANUNCI_LICITACIO o
+        ANUNCI_EN_TERMINI). Si no n'hi ha cap, usa item['id'] com a fallback (RN-15).
+
+        Args:
+            item: Diccionari amb els camps del llistat paginat.
+
+        Returns:
+            Tender amb els camps d'identificació emplenats.
+        """
+        fases = item.get("fasesVigents") or {}
+        anunci = next(
+            (fases[k] for k in cls._FASES_AMB_DOCUMENTS if k in fases),
+            {},
+        )
+        publicacio_id = anunci.get("idPublicacio") or item["id"]
+        return Tender(
+            expedient_id=item["expedientId"],
+            publicacio_id=publicacio_id,
+            organ=item["organ"],
+            titol=item["titol"],
+        )
 
     @staticmethod
-    def _extract_documents(node: object) -> list[dict]:
-        """Recursively find document nodes: dicts with int id, titol and hash."""
-        found: list[dict] = []
-        if isinstance(node, dict):
-            if (
-                isinstance(node.get("id"), int)
-                and isinstance(node.get("titol"), str)
-                and isinstance(node.get("hash"), str)
-            ):
-                found.append(node)
-            else:
-                for value in node.values():
-                    found.extend(
-                        ContractacioPublicaClient._extract_documents(value))
-        elif isinstance(node, list):
-            for item in node:
-                found.extend(
-                    ContractacioPublicaClient._extract_documents(item))
-        return found
+    def _extract_documents(expedient_id: str, data: dict) -> list[Document]:
+        """Extreu tots els documents de les seccions conegudes del JSON de detall.
 
-    async def download_document(self, doc_id: int, doc_hash: str) -> bytes:
-        """Download the raw PDF bytes for a document."""
-        log.info("[HTTP] GET descarrega-document/%d/%s", doc_id, doc_hash)
-        async with self._http_errors(f"download_document(doc_id={doc_id})"):
-            response = await self._http_client.get(
-                f"{self._base_url}/descarrega-document/{doc_id}/{doc_hash}",
+        Args:
+            expedient_id: UUID de l'expedient al qual pertanyen els documents.
+            data:         JSON complet de /detall-publicacio-expedient.
+
+        Returns:
+            Llista de Document amb doc_type assignat per secció.
+        """
+        logger.debug(
+            "[DETALL] expedient=%s — claus arrel: %s",
+            expedient_id, list(data.keys()),
+        )
+        dades = data.get("dades", {})
+        logger.debug(
+            "[DETALL] expedient=%s — claus dades: %s",
+            expedient_id, list(dades.keys())[:30] if dades else "BUIT",
+        )
+        publicacio = dades.get("publicacio", {}) if dades else {}
+        logger.debug(
+            "[DETALL] expedient=%s — claus dades.publicacio: %s",
+            expedient_id, list(publicacio.keys())[
+                :30] if publicacio else "BUIT",
+        )
+        dades_pub = publicacio.get("dadesPublicacio", {})
+        logger.debug(
+            "[DETALL] expedient=%s — claus dades.publicacio.dadesPublicacio: %s",
+            expedient_id, list(dades_pub.keys()) if dades_pub else "BUIT",
+        )
+        documents: list[Document] = []
+
+        for section_key in _DOCUMENT_SECTIONS:
+            section = dades_pub.get(section_key, [])
+            if isinstance(section, dict):
+                if not section:
+                    section = []
+                elif "docs" in section:
+                    section = section["docs"]
+                    logger.debug(
+                        "[DETALL] expedient=%s — secció '%s' estructura {docs:[...]}, %d docs",
+                        expedient_id, section_key, len(section),
+                    )
+                elif "ca" in section or "es" in section:
+                    section = section.get("ca") or section.get("es") or []
+                elif "id" in section:
+                    section = [section]
+                else:
+                    logger.warning(
+                        "[DETALL] expedient=%s — secció '%s' dict sense estructura coneguda (claus: %s), s'ignora",
+                        expedient_id, section_key, list(section.keys())[:5],
+                    )
+                    section = []
+            elif not isinstance(section, list):
+                logger.warning(
+                    "[DETALL] expedient=%s — secció '%s' tipus inesperat (%s), s'ignora",
+                    expedient_id, section_key, type(section).__name__,
+                )
+                continue
+            logger.debug(
+                "[DETALL] expedient=%s — secció '%s': %d ítems",
+                expedient_id, section_key, len(section),
             )
-            response.raise_for_status()
-            size_kb = len(response.content) / 1024
-            log.info("[HTTP] download_document/%d → %.1f KB", doc_id, size_kb)
-            return response.content
+            doc_type = DocumentType.from_api_section(section_key)
+            for raw in section:
+                documents.append(Document(
+                    expedient_id=expedient_id,
+                    doc_id=raw["id"],
+                    titol=raw["titol"],
+                    hash=raw["hash"],
+                    mida=raw["mida"],
+                    doc_type=doc_type,
+                ))
+
+        logger.debug(
+            "[DETALL] expedient=%s — total documents extrets: %d",
+            expedient_id, len(documents),
+        )
+        return documents

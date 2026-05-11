@@ -1,50 +1,68 @@
-"""FastAPI application entry point."""
+"""Punt d'entrada de l'aplicació FastAPI — w2flow.
 
-from __future__ import annotations
-
+Registra els routers, els exception handlers i els fitxers estàtics.
+Tota la lògica de negoci viu als use cases i al domini; main.py
+és exclusivament configuració i cablejat.
+"""
 import logging
-from pathlib import Path
+
+import structlog
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
-from app.config import settings
-from app.infrastructure.api.v1.routers import (
-    filters_router,
-    health_router,
-    pipeline_router,
-    reports_router,
-    tenders_router,
-    ui_router,
+from app.application.exceptions.application_errors import NoActiveFilterConfigError, TenderApiError
+from app.config import Settings
+from app.infrastructure.api.exception_handlers import (
+    generic_error_handler,
+    no_active_filter_config_handler,
+    tender_api_error_handler,
 )
-from app.infrastructure import dependencies
+from app.infrastructure.api.filters_router import router as filters_router
+from app.infrastructure.api.pipeline_router import router as pipeline_router
+from app.infrastructure.api.tenders_router import router as tenders_router
+
+_settings = Settings()
 
 logging.basicConfig(
-    level=logging.DEBUG if settings.app_debug else logging.INFO,
+    level=logging.DEBUG if _settings.app_debug else logging.INFO,
     format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
 )
 
-_BASE_DIR = Path(__file__).resolve().parent
+# Timbal emet logs molt verbosos internament; només mostrem WARNING i superiors.
+for _noisy in ("timbal", "timbal.agent", "timbal.state", "httpx", "httpcore"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
+
+# Timbal usa structlog internament — silenciem debug/info del seu bound logger.
+structlog.configure(
+    wrapper_class=structlog.make_filtering_bound_logger(logging.WARNING),
+)
 
 app = FastAPI(
     title="w2flow",
-    description="Automated public tender monitoring and scoring API.",
-    version="1.0.0",
+    description="Monitoratge automatitzat i puntuació de licitacions públiques.",
+    version="0.3.0",
 )
 
-# Static files and templates
-app.mount("/static", StaticFiles(directory=_BASE_DIR / "static"), name="static")
-templates = Jinja2Templates(directory=_BASE_DIR / "templates")
+# ---------------------------------------------------------------------------
+# Fitxers estàtics
+# ---------------------------------------------------------------------------
 
-_PREFIX = "/api/v1"
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Inject shared repository into routers that need it
-tenders_router._repository = dependencies.repository
+# ---------------------------------------------------------------------------
+# Exception handlers
+# ---------------------------------------------------------------------------
 
-app.include_router(filters_router.router, prefix=_PREFIX)
-app.include_router(health_router.router, prefix=_PREFIX)
-app.include_router(tenders_router.router, prefix=_PREFIX)
-app.include_router(reports_router.router, prefix=_PREFIX)
-app.include_router(pipeline_router.router, prefix=_PREFIX)
-app.include_router(ui_router.router)  # UI pages — no /api/v1 prefix
+app.add_exception_handler(NoActiveFilterConfigError,
+                          no_active_filter_config_handler)
+app.add_exception_handler(TenderApiError, tender_api_error_handler)
+app.add_exception_handler(Exception, generic_error_handler)
+
+# ---------------------------------------------------------------------------
+# Routers
+# ---------------------------------------------------------------------------
+
+app.include_router(pipeline_router)
+app.include_router(filters_router)
+app.include_router(tenders_router)
