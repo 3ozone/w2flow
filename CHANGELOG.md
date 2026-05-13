@@ -4,6 +4,54 @@ Totes les versions segueixen [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v2.0.0] - 13-5-2026
+
+### Afegit
+
+#### Fase J — Documents adjunts, comentaris LLM i persistència completa
+- Entitat de domini `TenderDocument` — `expedient_id`, `filename`, `filepath`, `comentari_llm`, `created_at`
+- `DocumentAnalysis` ampliat amb `comentaris_per_doc: dict[str, str]` i `recomendacio: str`
+- Prompt NLP ampliat: el LLM retorna JSON amb comentaris per document i recomanació GO/NO GO
+- `NlpAnalyserPort.analyse()` accepta ara `filenames: list[str] | None`
+- Port `DocumentStoragePort` + implementació `LocalFileDocumentStorage` (escriu a `downloads/<id>/`)
+- Port `TenderDocumentRepositoryPort` + `SqlAlchemyTenderDocumentRepository`
+- Model ORM `TenderDocumentModel` — taula `tender_documents` amb FK a `tenders`
+- Noves columnes a `TenderModel`: `created_at`, `score_total`, `score_traffic_light`, `score_detall`, `recomendacio`
+- Migració Alembic per a les noves taules i columnes
+- `RunPipelineUseCase` actualitzat: guarda PDFs a disc, persista documents a BD, crida `update_score()` post-NLP
+- `TenderRepositoryPort` + `SqlAlchemyTenderRepository` — nou mètode `update_score()`
+- `ScoredTenderDTO` — nous camps `recomendacio: str` i `created_at: datetime | None`
+- Endpoint `GET /documents/{expedient_id}/{filename}/download` — serveix PDFs com a `FileResponse`
+- Endpoint `DELETE /documents/{expedient_id}/{filename}` — elimina de disc i BD
+- Vista `/licitacions` ara llegeix de BD (no de `_last_report`): `TenderModel` + `TenderDocumentModel`
+- Layout expandible a `tenders.html`: desglose 5 criteris, llista de documents amb comentari LLM plegable, bloc recomanació GO/NO GO
+- Columna `Data` (DD/MM/YYYY) a la taula de licitacions
+- Botons ⬇ download i ✕ delete per cada document
+- Dashboard (`/`) simplificat: al completar pipeline mostra botó "Veure licitacions →"
+
+#### Fase H — Millores pipeline
+- `ScoredTenderDTO` — camp `detall: dict[str, int]` amb desglose dels 5 criteris de RN-12
+- `FetchCandidatesUseCase` — paginació automàtica: calcula pàgina inicial des de `count()`, evita reprocessar duplicats
+- `TenderRepositoryPort` + `SqlAlchemyTenderRepository` — nou mètode abstracte `count()`
+
+#### Fase G — Desacoblament del model LLM (config-driven)
+- `config.py` — substituït `gemini_api_key` per `llm_model: str` i `llm_api_key: str`
+- `TimbalNlpAnalyser` — detecta provider del model; providers amb suport PDF natiu (`google`, `anthropic`) envien `File` objects; la resta usen `pymupdf` per extreure text (truncat a 32.000 chars)
+- `_PDF_CAPABLE_PROVIDERS = {"google", "anthropic"}` — constant configurable
+- `.env` suporta ara qualsevol model LiteLLM: `groq/llama-3.3-70b-versatile`, `google/gemini-2.0-flash`, `anthropic/claude-3-5-sonnet`
+
+#### Fases E–F — Correccions paràmetres API
+- `FilterConfig` — valors per defecte corregits: `fase_vigent=30` (Anunci de licitació), `ambit=1500001`, `tipus_contracte=395`, `procediment_adjudicacio=401`
+- `ContractacioPublicaClient.fetch_tenders()` — descarta ítems sense `ANUNCI_LICITACIO` a `fasesVigents`
+- `ContractacioPublicaClient._parse_tender()` — usa `fasesVigents.ANUNCI_LICITACIO.idPublicacio` com a `publicacio_id`
+
+### Corregit
+- `SqlAlchemyTenderRepository.save()` — afegit `session.flush()` per garantir la FK de `tender_documents` (evita `ForeignKeyViolation`)
+- `_run_pipeline_task()` a `ui_router.py` — afegit `db.commit()` al final del pipeline i `db.rollback()` al bloc d'error (sense commit la sessió feia rollback en tancar)
+- `SqlAlchemyTenderRepository` — `def list_all()` quedava fusionat amb `save()` per un replace incorrecte; restaurat correctament
+
+---
+
 ## [1.0.0] — 2026-05-02
 
 Primera versió de producció. Inclou el projecte complet des del domini fins al frontend.

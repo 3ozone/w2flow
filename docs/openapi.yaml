@@ -3,10 +3,10 @@ openapi: 3.1.0
 info:
   title: w2flow API
   description: API per a la descàrrega, filtrat i puntuació de licitacions públiques de contractaciopublica.cat
-  version: 0.3.0
+  version: 2.0.0
 
 servers:
-  - url: http://localhost:8000
+  - url: http://localhost:8089
     description: Desenvolupament local
 
 tags:
@@ -16,9 +16,10 @@ tags:
     description: Gestió de configuracions de filtre
   - name: tenders
     description: Consulta de licitacions persistides
+  - name: documents
+    description: Gestió de documents adjunts (descàrrega i eliminació)
 
 paths:
-
   # ── Pipeline ────────────────────────────────────────────────────
 
   /api/v1/pipeline/run:
@@ -27,22 +28,23 @@ paths:
       summary: Executa el pipeline complet
       description: |
         Obté la FilterConfig activa, descarrega licitacions, aplica filtres,
-        analitza documents amb NLP, puntua i retorna el report complet.
+        analitza documents amb NLP (LiteLLM config-driven), puntua i persista
+        a PostgreSQL. El pipeline s'executa en background task.
       responses:
-        "200":
-          description: Report generat correctament
+        "202":
+          description: Pipeline iniciat correctament
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReportDTO"
-        "404":
-          description: No hi ha cap configuració de filtre activa
+                $ref: "#/components/schemas/PipelineStarted"
+        "409":
+          description: Ja hi ha un pipeline en execució
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "502":
-          description: Error de comunicació amb l'API de contractació pública
+        "404":
+          description: No hi ha cap configuració de filtre activa
           content:
             application/json:
               schema:
@@ -53,6 +55,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /api/v1/pipeline/status:
+    get:
+      tags: [pipeline]
+      summary: Estat del pipeline en curs
+      description: Retorna l'estat actual del procés (RNF-01).
+      responses:
+        "200":
+          description: Estat del pipeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineStatus"
 
   # ── Filters ─────────────────────────────────────────────────────
 
@@ -132,11 +147,81 @@ paths:
                 items:
                   $ref: "#/components/schemas/Tender"
 
+  # ── Documents ───────────────────────────────────────────────────
+
+  /api/v1/documents/{expedient_id}/{filename}/download:
+    get:
+      tags: [documents]
+      summary: Descàrrega d'un document adjunt (RF-09)
+      description: Serveix el PDF d'un document adjunt com a FileResponse.
+      parameters:
+        - name: expedient_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: UUID de la licitació
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Nom del fitxer PDF
+      responses:
+        "200":
+          description: Fitxer PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Document no trobat a la BD o al disc
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/documents/{expedient_id}/{filename}:
+    delete:
+      tags: [documents]
+      summary: Elimina un document adjunt
+      description: Esborra el document de disc i de la base de dades.
+      parameters:
+        - name: expedient_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: UUID de la licitació
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Nom del fitxer PDF
+      responses:
+        "200":
+          description: Document eliminat correctament
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Document eliminat correctament.
+        "404":
+          description: Document no trobat
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 # ── Schemas ───────────────────────────────────────────────────────
 
 components:
   schemas:
-
     TrafficLight:
       type: string
       enum: [green, yellow, red]
@@ -266,6 +351,31 @@ components:
             type: string
           description: Grups de classificació empresarial requerits
 
+    TenderDocument:
+      type: object
+      description: Document adjunt d'una licitació persistit a disc i BD (RF-09, J.1)
+      properties:
+        id:
+          type: integer
+          description: Clau primària autoincremental
+        expedient_id:
+          type: string
+          description: UUID de la licitació (FK a tenders)
+        filename:
+          type: string
+          description: Nom del fitxer PDF
+        filepath:
+          type: string
+          description: Ruta relativa al disc (downloads/<expedient_id>/<filename>)
+        comentari_llm:
+          type: string
+          nullable: true
+          description: Comentari narratiu generat pel LLM per a aquest document (RF-10)
+        created_at:
+          type: string
+          format: date-time
+          description: Data de creació del registre
+
     ScoredTenderDTO:
       type: object
       properties:
@@ -309,6 +419,20 @@ components:
               type: integer
               minimum: 0
               maximum: 10
+        recomendacio:
+          type: string
+          nullable: true
+          description: Recomanació global GO/NO GO generada pel LLM (RF-10, J.5)
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data de processament de la licitació pel pipeline (J.1)
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenderDocument"
+          description: Documents adjunts descarregats i analitzats (RF-09, J.5)
 
     ReportDTO:
       type: object
@@ -325,335 +449,12 @@ components:
           type: integer
           description: Nombre de licitacions amb puntuació >= 40
 
-    Error:
-      type: object
-      properties:
-        detail:
-          type: string
-          description: Descripció de l'error
-
-
-paths:
-
-  # ── Pipeline ────────────────────────────────────────────────────
-
-  /pipeline/run:
-    post:
-      tags: [pipeline]
-      summary: Lanza el pipeline completo
-      description: Descarga licitaciones del día, aplica filtros, extrae requisitos, puntúa y genera informe.
-      responses:
-        "202":
-          description: Pipeline iniciado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PipelineStarted"
-        "409":
-          description: Ya hay un pipeline en ejecución
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "422":
-          description: Filtros no configurados (R-05)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /pipeline/status:
-    get:
-      tags: [pipeline]
-      summary: Estado del pipeline en curso
-      description: Devuelve el estado actual del proceso (RNF-01).
-      responses:
-        "200":
-          description: Estado del pipeline
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PipelineStatus"
-
-  # ── Filters ─────────────────────────────────────────────────────
-
-  /filters:
-    get:
-      tags: [filters]
-      summary: Obtiene la configuración de filtros activa
-      responses:
-        "200":
-          description: Filtros actuales
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FilterConfig"
-
-    put:
-      tags: [filters]
-      summary: Actualiza los filtros de selección
-      description: Debe configurarse antes de lanzar el pipeline (R-05).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/FilterConfig"
-      responses:
-        "200":
-          description: Filtros actualizados
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/FilterConfig"
-        "422":
-          description: Datos de filtro inválidos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  # ── Tenders ─────────────────────────────────────────────────────
-
-  /tenders:
-    get:
-      tags: [tenders]
-      summary: Lista de licitaciones evaluadas
-      description: Devuelve las licitaciones del último informe con su semáforo.
-      parameters:
-        - name: traffic_light
-          in: query
-          schema:
-            $ref: "#/components/schemas/TrafficLight"
-          description: Filtra por semáforo
-        - name: report_id
-          in: query
-          schema:
-            type: string
-          description: Filtra por informe
-      responses:
-        "200":
-          description: Lista de licitaciones evaluadas
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ScoredTender"
-
-  /tenders/{id}:
-    get:
-      tags: [tenders]
-      summary: Detalle de una licitación evaluada
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-          description: expedientCode de la licitación
-      responses:
-        "200":
-          description: Detalle de la licitación evaluada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScoredTender"
-        "404":
-          description: Licitación no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  # ── Reports ─────────────────────────────────────────────────────
-
-  /reports:
-    get:
-      tags: [reports]
-      summary: Lista de informes comparativos generados
-      responses:
-        "200":
-          description: Lista de informes
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ReportSummary"
-
-  /reports/{id}:
-    get:
-      tags: [reports]
-      summary: Detalle de un informe comparativo
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Informe completo
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ComparativeReport"
-        "404":
-          description: Informe no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-# ── Schemas ───────────────────────────────────────────────────────
-
-components:
-  schemas:
-
-    TrafficLight:
-      type: string
-      enum: [GREEN, YELLOW, RED]
-      description: "GREEN ≥70 · YELLOW 40-69 · RED <40"
-
-    DocumentType:
-      type: string
-      enum: [PCAP, PPT, TECHNICAL_MEMORY, BUDGET, ANNEXES]
-
-    FilterConfig:
-      type: object
-      required:
-        - work_type
-        - price_range
-        - geographic_area
-        - cpv_codes
-        - execution_deadline
-        - business_classification
-      properties:
-        work_type:
-          type: string
-          description: Tipología de obra
-        price_range:
-          type: object
-          required: [min, max]
-          properties:
-            min:
-              type: number
-            max:
-              type: number
-        geographic_area:
-          type: string
-          description: Área geográfica
-        cpv_codes:
-          type: array
-          items:
-            type: string
-          description: Códigos CPV permitidos
-        execution_deadline:
-          type: integer
-          description: Plazo máximo de ejecución en días
-        business_classification:
-          type: string
-          description: Clasificación empresarial requerida
-
-    Tender:
-      type: object
-      properties:
-        expedient_code:
-          type: string
-        contracting_body:
-          type: string
-        amount:
-          type: number
-        cpv_code:
-          type: string
-        execution_deadline:
-          type: integer
-        presentation_deadline:
-          type: string
-          format: date-time
-        publication_date:
-          type: string
-          format: date
-
-    Score:
-      type: object
-      properties:
-        tender_id:
-          type: string
-        economic_score:
-          type: number
-          minimum: 0
-          maximum: 100
-        technical_score:
-          type: number
-          minimum: 0
-          maximum: 100
-        total_score:
-          type: number
-          minimum: 0
-          maximum: 100
-        traffic_light:
-          $ref: "#/components/schemas/TrafficLight"
-
-    Document:
-      type: object
-      properties:
-        tender_id:
-          type: string
-        type:
-          $ref: "#/components/schemas/DocumentType"
-        file_path:
-          type: string
-        download_date:
-          type: string
-          format: date-time
-
-    ScoredTender:
-      type: object
-      properties:
-        tender:
-          $ref: "#/components/schemas/Tender"
-        score:
-          $ref: "#/components/schemas/Score"
-        documents:
-          type: array
-          items:
-            $ref: "#/components/schemas/Document"
-        evaluation_report:
-          type: string
-
-    ReportSummary:
-      type: object
-      properties:
-        id:
-          type: string
-        generation_date:
-          type: string
-          format: date-time
-        total_processed:
-          type: integer
-        total_viable:
-          type: integer
-        summary:
-          type: string
-
-    ComparativeReport:
-      allOf:
-        - $ref: "#/components/schemas/ReportSummary"
-        - type: object
-          properties:
-            scored_tenders:
-              type: array
-              items:
-                $ref: "#/components/schemas/ScoredTender"
-
     PipelineStarted:
       type: object
       properties:
         message:
           type: string
-          example: Pipeline iniciado
+          example: Pipeline iniciat
         started_at:
           type: string
           format: date-time
@@ -661,26 +462,26 @@ components:
     PipelineStatus:
       type: object
       properties:
-        status:
+        state:
           type: string
           enum: [idle, running, completed, failed]
-        current_stage:
-          type: string
-          enum: [download, filter, extract, score, report, notify]
-          nullable: true
-        downloaded:
-          type: integer
-        processed:
-          type: integer
-        errors:
-          type: integer
+          description: Estat actual del pipeline
         started_at:
           type: string
           format: date-time
           nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+          description: Missatge d'error si state == failed
 
     Error:
       type: object
       properties:
         detail:
           type: string
+          description: Descripció de l'error

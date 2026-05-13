@@ -389,3 +389,9 @@ LLM_API_KEY=sk-ant-xxx
 
 - [x] `IMPL` `index.html` + `pipeline_status.html` — quan el pipeline completa, mostrar botó "Veure licitacions →" que porta a `/licitacions` en lloc de carregar resultats inline
 - [x] `IMPL` eliminar `#search-results` div de `index.html` (ja no cal)
+
+### Bugfixes post-J ✅
+
+- [x] `FIX` `SqlAlchemyTenderRepository` — `list_all()` havia quedat fusionat dins de `save()` per un replace incorrecte. `TypeError: Can't instantiate abstract class` en producció. Restaurat el `def list_all()` correctament.
+- [x] `FIX` `SqlAlchemyTenderRepository.save()` — afegit `session.flush()` per satisfer la FK de `tender_documents` (`ForeignKeyViolation` en insertar documents abans que el tender estigués a la BD)
+- [x] `FIX` `_run_pipeline_task()` (`ui_router.py`) — afegit `db.commit()` + `db.rollback()`. Sense commit, `db.close()` feia rollback de tot i la BD quedava buida malgrat que el pipeline completava correctament.
