@@ -20,15 +20,19 @@ _PDF_CAPABLE_PROVIDERS = {"google", "anthropic"}
 _MAX_TEXT_CHARS = 32_000
 
 _SYSTEM_PROMPT = """Ets un expert en licitacions públiques catalanes.
-Analitza els documents PDF adjunts d'una licitació i retorna una puntuació JSON
-amb exactament aquests 5 camps numèrics enters (sense cap altre text):
+Analitza els documents PDF adjunts d'una licitació i retorna un JSON amb exactament aquests 7 camps:
 
 {
   "solvencia": <0-30>,
   "criteris_adjudicacio": <0-25>,
   "clausules_atipiques": <0-20>,
   "procediment": <0-15>,
-  "condicions_execucio": <0-10>
+  "condicions_execucio": <0-10>,
+  "comentaris_per_doc": {
+    "<nom_fitxer_1.pdf>": "<comentari breu sobre aquest document en català>",
+    "<nom_fitxer_2.pdf>": "<comentari breu sobre aquest document en català>"
+  },
+  "recomendacio": "<raonament GO o NO GO en 2-4 frases en català>"
 }
 
 Criteris de puntuació (RN-12):
@@ -43,7 +47,13 @@ Criteris de puntuació (RN-12):
 - condicions_execucio (0-10): Condicions d'execució raonables (terminis, penalitats, garanties).
   10 = condicions molt raonables, 0 = condicions molt exigents.
 
-Respon ÚNICAMENT amb el JSON, sense explicacions."""
+Per a comentaris_per_doc: usa els noms de fitxer exactes que t'indiquen i escriu 1-2 frases
+en català explicant els aspectes clau d'aquell document per a la decisió GO/NO GO.
+
+Per a recomendacio: escriu "GO — <raonament>" o "NO GO — <raonament>" en 2-4 frases en català,
+resumint per què la licitació és o no és viable per a l'empresa.
+
+Respon ÚNICAMENT amb el JSON dels 7 camps, sense cap altre text."""
 
 
 class TimbalNlpAnalyser(NlpAnalyserPort):

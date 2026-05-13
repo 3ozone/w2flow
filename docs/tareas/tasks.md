@@ -395,3 +395,32 @@ LLM_API_KEY=sk-ant-xxx
 - [x] `FIX` `SqlAlchemyTenderRepository` — `list_all()` havia quedat fusionat dins de `save()` per un replace incorrecte. `TypeError: Can't instantiate abstract class` en producció. Restaurat el `def list_all()` correctament.
 - [x] `FIX` `SqlAlchemyTenderRepository.save()` — afegit `session.flush()` per satisfer la FK de `tender_documents` (`ForeignKeyViolation` en insertar documents abans que el tender estigués a la BD)
 - [x] `FIX` `_run_pipeline_task()` (`ui_router.py`) — afegit `db.commit()` + `db.rollback()`. Sense commit, `db.close()` feia rollback de tot i la BD quedava buida malgrat que el pipeline completava correctament.
+
+---
+
+## Fase K — Prompt NLP complet: comentaris per document i recomendació GO/NO GO (RF-10)
+
+**Context**: La infraestructura per persistir `comentaris_per_doc` i `recomendacio` ja existeix (BD, entitats,
+UI). El problema és que el `_SYSTEM_PROMPT` de `TimbalNlpAnalyser` només demana al LLM els 5 camps
+numèrics de puntuació i diu "Respon ÚNICAMENT amb el JSON, sense explicacions." — per tant el LLM
+mai genera els camps `comentaris_per_doc` ni `recomendacio`, i la UI sempre mostra els blocs buits.
+
+**Objectiu**: Ampliar el `_SYSTEM_PROMPT` perquè el LLM retorni un JSON de 7 camps:
+- 5 puntuacions numèriques (igual que ara)
+- `comentaris_per_doc`: objecte `{ "<filename>": "<comentari narratiu>" }` per a cada document analitzat
+- `recomendacio`: string amb el raonament GO/NO GO (2–4 frases en català)
+
+**Impacte**: Només `timbal_nlp_analyser.py` (`_SYSTEM_PROMPT`). La resta de la cadena
+(`_parse_response`, `DocumentAnalysis`, `ScoredTenderDTO`, BD, UI) ja és correcta.
+
+### K.1 — Test del prompt ampliat
+
+- [x] `TEST` `TimbalNlpAnalyser._parse_response()` — no cal test nou: `_parse_response` ja extreu
+  `comentaris_per_doc` i `recomendacio` correctament (implementat a la Fase J). No existia cap test
+  per a aquest mètode i afegir-ne no aportaria valor addicional al canvi (el comportament no canvia). ✅
+
+### K.2 — Actualitzar `_SYSTEM_PROMPT` de `TimbalNlpAnalyser` ✅
+
+- [x] `IMPL` `timbal_nlp_analyser._SYSTEM_PROMPT` — ampliat per demanar 7 camps al LLM:
+  5 puntuacions numèriques + `comentaris_per_doc` (per fitxer) + `recomendacio` (GO/NO GO en 2-4 frases).
+  Instrucció final: "Respon ÚNICAMENT amb el JSON dels 7 camps, sense cap altre text."
