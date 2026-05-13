@@ -1,26 +1,30 @@
 """Use case que orquestra el pipeline complet de licitacions (RF-04, RF-05, RF-06, RF-07)."""
+import json
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 
 from app.application.dtos.report_dto import ReportDTO
 
 logger = logging.getLogger(__name__)
 from app.application.dtos.scored_tender_dto import ScoredTenderDTO
+from app.application.ports.document_storage_port import DocumentStoragePort
 from app.application.ports.nlp_analyser_port import NlpAnalyserPort
 from app.application.ports.tender_api_port import TenderApiPort
+from app.application.ports.tender_document_repository_port import TenderDocumentRepositoryPort
 from app.application.ports.tender_repository_port import TenderRepositoryPort
 from app.application.use_cases.fetch_candidates_use_case import FetchCandidatesUseCase
 from app.domain.value_objects.filter_config import FilterConfig
 
 
 class RunPipelineUseCase:
-    """Orquestra el pipeline complet: fetch → documents → NLP → score → ReportDTO.
+    """Orquestra el pipeline complet: fetch → documents → storage → NLP → score → ReportDTO.
 
     Responsabilitats:
     - Delegar la cerca i filtratge de candidats a FetchCandidatesUseCase.
     - Per cada candidat, obtenir els documents adjunts via TenderApiPort.
-    - Descarregar només els documents obligatoris (PCAP, PPT, TECHNICAL_MEMORY).
+    - Descarregar i persistir en disc els documents obligatoris (PCAP, PPT, TECHNICAL_MEMORY).
     - Analitzar els PDFs amb NlpAnalyserPort per obtenir DocumentAnalysis.
+    - Desar la puntuació i recomanació a la base de dades.
     - Construir un ScoredTenderDTO per cada licitació i empaquetarlo en un ReportDTO.
 
     Aquesta classe és la frontera pública de la capa d'aplicació cap a presentació.
@@ -32,19 +36,25 @@ class RunPipelineUseCase:
         api: TenderApiPort,
         nlp: NlpAnalyserPort,
         repository: TenderRepositoryPort,
+        document_storage: DocumentStoragePort,
+        document_repository: TenderDocumentRepositoryPort,
     ) -> None:
         """Inicialitza el use case amb les dependències injectades.
 
         Args:
-            fetch_candidates: Use case intern per obtenir licitacions candidates.
-            api:              Port per obtenir documents i descarregar PDFs.
-            nlp:              Port per analitzar PDFs amb NLP.
-            repository:       Port per persistir les licitacions processades.
+            fetch_candidates:    Use case intern per obtenir licitacions candidates.
+            api:                 Port per obtenir documents i descarregar PDFs.
+            nlp:                 Port per analitzar PDFs amb NLP.
+            repository:          Port per persistir les licitacions processades.
+            document_storage:    Port per guardar PDFs en disc.
+            document_repository: Port per guardar metadades de documents a la BD.
         """
         self._fetch_candidates = fetch_candidates
         self._api = api
         self._nlp = nlp
         self._repository = repository
+        self._document_storage = document_storage
+        self._document_repository = document_repository
 
     def execute(self, config: FilterConfig, today: date) -> ReportDTO:
         """Executa el pipeline complet i retorna el report amb les licitacions puntuades.
@@ -72,16 +82,42 @@ class RunPipelineUseCase:
                 "[PIPELINE] tender=%s — %d documents totals, %d obligatoris",
                 tender.expedient_id, len(documents), len(mandatory_docs),
             )
-            pdf_bytes = [self._api.download_document(doc.doc_id, doc.hash) for doc in mandatory_docs]
+            pdf_bytes_list = [
+                self._api.download_document(doc.doc_id, doc.hash) for doc in mandatory_docs
+            ]
 
-            analysis = self._nlp.analyse(expedient_id=tender.expedient_id, documents=pdf_bytes)
+            # Persistir el tender PRIMER per satisfer la FK de tender_documents
+            self._repository.save(tender)
+
+            for doc, pdf_bytes in zip(mandatory_docs, pdf_bytes_list):
+                tender_doc = self._document_storage.save(
+                    expedient_id=tender.expedient_id,
+                    filename=doc.titol,
+                    content=pdf_bytes,
+                )
+                self._document_repository.save(tender_doc)
+
+            filenames = [doc.titol for doc in mandatory_docs]
+            analysis = self._nlp.analyse(
+                expedient_id=tender.expedient_id,
+                documents=pdf_bytes_list,
+                filenames=filenames,
+            )
             score = analysis.to_score()
+            processed_at = datetime.now(tz=timezone.utc)
             logger.info(
                 "[PIPELINE] tender=%s — score total=%s semàfor=%s",
                 tender.expedient_id, score.total, score.assign_traffic_light().value,
             )
 
-            self._repository.save(tender)
+            self._repository.update_score(
+                expedient_id=tender.expedient_id,
+                score_total=score.total,
+                score_traffic_light=score.assign_traffic_light().value,
+                score_detall=json.dumps(score.detall),
+                recomendacio=analysis.recomendacio,
+                created_at=processed_at,
+            )
 
             scored_dtos.append(ScoredTenderDTO(
                 expedient_id=tender.expedient_id,
@@ -91,6 +127,8 @@ class RunPipelineUseCase:
                 total=score.total,
                 traffic_light=score.assign_traffic_light().value,
                 detall=score.detall,
+                recomendacio=analysis.recomendacio,
+                created_at=processed_at,
             ))
 
         total_viable = sum(1 for dto in scored_dtos if dto.total >= 40)

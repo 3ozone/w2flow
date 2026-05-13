@@ -7,6 +7,7 @@ Flux de dependències:
   Settings → engine → SessionLocal → repositoris → use cases → routers
 """
 from collections.abc import Generator
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -15,8 +16,10 @@ from app.application.use_cases.run_pipeline_use_case import RunPipelineUseCase
 from app.config import Settings
 from app.infrastructure.database import SessionLocal
 from app.infrastructure.repositories.sqlalchemy_filter_repository import SqlAlchemyFilterRepository
+from app.infrastructure.repositories.sqlalchemy_tender_document_repository import SqlAlchemyTenderDocumentRepository
 from app.infrastructure.repositories.sqlalchemy_tender_repository import SqlAlchemyTenderRepository
 from app.infrastructure.services.contractacio_publica_client import ContractacioPublicaClient
+from app.infrastructure.services.local_file_document_storage import LocalFileDocumentStorage
 from app.infrastructure.services.timbal_nlp_analyser import TimbalNlpAnalyser
 
 _settings = Settings()
@@ -59,6 +62,27 @@ def get_tender_repository(db: Session) -> SqlAlchemyTenderRepository:
         Instància de SqlAlchemyTenderRepository.
     """
     return SqlAlchemyTenderRepository(db)
+
+
+def get_tender_document_repository(db: Session) -> SqlAlchemyTenderDocumentRepository:
+    """Proveeix el repositori de documents adjunts de licitacions.
+
+    Args:
+        db: Sessió SQLAlchemy injectada per get_db().
+
+    Returns:
+        Instància de SqlAlchemyTenderDocumentRepository.
+    """
+    return SqlAlchemyTenderDocumentRepository(db)
+
+
+def get_document_storage() -> LocalFileDocumentStorage:
+    """Proveeix l'emmagatzematge local de PDFs.
+
+    Returns:
+        Instància de LocalFileDocumentStorage amb base_dir=downloads/.
+    """
+    return LocalFileDocumentStorage(base_dir=Path("downloads"))
 
 
 def get_filter_repository(db: Session) -> SqlAlchemyFilterRepository:
@@ -132,4 +156,6 @@ def get_run_pipeline_use_case(db: Session) -> RunPipelineUseCase:
         api=get_api_client(),
         nlp=get_nlp_analyser(),
         repository=get_tender_repository(db),
+        document_storage=get_document_storage(),
+        document_repository=get_tender_document_repository(db),
     )

@@ -1,5 +1,6 @@
 """Implementació SQLAlchemy del port TenderRepositoryPort (RN-06)."""
 import json
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -68,6 +69,7 @@ class SqlAlchemyTenderRepository(TenderRepositoryPort):
             classifications=classifications,
         )
         self._session.add(model)
+        self._session.flush()  # Garanteix que el tender és a la BD abans d'inserir documents (FK)
 
     def list_all(self) -> list[Tender]:
         """Retorna totes les licitacions de la BD ordenades per data_limit descendent.
@@ -92,6 +94,34 @@ class SqlAlchemyTenderRepository(TenderRepositoryPort):
             Nombre enter de registres existents.
         """
         return self._session.query(TenderModel).count()
+
+    def update_score(
+        self,
+        expedient_id: str,
+        score_total: int,
+        score_traffic_light: str,
+        score_detall: str,
+        recomendacio: str,
+        created_at: datetime,
+    ) -> None:
+        """Desa la puntuació NLP i la recomanació LLM d'una licitació ja existent (RF-09).
+
+        Args:
+            expedient_id:        Identificador únic de l'expedient.
+            score_total:         Puntuació total NLP (0-100).
+            score_traffic_light: Semàfor de viabilitat ("green", "yellow" o "red").
+            score_detall:        JSON serialitzat amb el desglose per criteri.
+            recomendacio:        Text GO/NO GO generat pel LLM.
+            created_at:          Marca de temps del processament.
+        """
+        model = self._session.get(TenderModel, expedient_id)
+        if model is None:
+            return
+        model.score_total = score_total
+        model.score_traffic_light = score_traffic_light
+        model.score_detall = score_detall
+        model.recomendacio = recomendacio
+        model.created_at = created_at
 
     @staticmethod
     def _to_domain(model: TenderModel) -> Tender:

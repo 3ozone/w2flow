@@ -15,19 +15,24 @@ from app.infrastructure.repositories.sqlalchemy_tender_repository import SqlAlch
 
 _CREATE_TENDERS_SQLITE = text("""
     CREATE TABLE tenders (
-        expedient_id    TEXT    PRIMARY KEY NOT NULL,
-        publicacio_id   INTEGER NOT NULL,
-        organ           TEXT    NOT NULL,
-        titol           TEXT    NOT NULL,
-        codi_expedient  TEXT,
-        pressupost      REAL,
-        cpv_principal   TEXT,
-        data_limit      DATETIME,
-        durada_dies     INTEGER,
-        tipus_contracte_id INTEGER,
-        procediment_id  INTEGER,
-        nuts_code       TEXT,
-        classifications TEXT    NOT NULL DEFAULT '[]'
+        expedient_id        TEXT    PRIMARY KEY NOT NULL,
+        publicacio_id       INTEGER NOT NULL,
+        organ               TEXT    NOT NULL,
+        titol               TEXT    NOT NULL,
+        codi_expedient      TEXT,
+        pressupost          REAL,
+        cpv_principal       TEXT,
+        data_limit          DATETIME,
+        durada_dies         INTEGER,
+        tipus_contracte_id  INTEGER,
+        procediment_id      INTEGER,
+        nuts_code           TEXT,
+        classifications     TEXT    NOT NULL DEFAULT '[]',
+        created_at          DATETIME,
+        score_total         INTEGER,
+        score_traffic_light TEXT,
+        score_detall        TEXT,
+        recomendacio        TEXT
     )
 """)
 

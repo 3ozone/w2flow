@@ -57,13 +57,23 @@ verde/amarillo/rojo).
 
 7. **RF-07**: Panel de comparativa de obras para el Departamento de Estudios, que permite
 revisar todas las candidatas y tomar la decisión GO/NO GO de manera
-informada.
+informada. El panel muestra:
+   - Puntuación 0–100 por licitación con semáforo verde/amarillo/rojo
+   - Desglose de los 5 criterios de puntuación (RN-12)
+   - Documentos adjuntos descargados con opción de descargar y borrar
+   - Comentario del LLM por cada documento explicando los criterios
+   - Recomendación global GO/NO GO generada por el LLM
+   - Fecha de procesamiento de cada licitación
 
 8. **RF-08**: Filtrado avanzado con cuatro criterios adicionales configurables desde la interfaz:
    - **CPV**: lista de códigos CPV exactos (ej. `45000000-7`); si está configurada, solo pasan licitaciones cuyo `cpvPrincipal` coincida.
    - **Presupuesto máximo**: importe tope que la empresa puede avalar con su solvencia económica; licitaciones por encima se descartan.
    - **Ubicación (NUTS)**: lista de códigos NUTS o provincias (ej. `ES511`, `ES512`); si está configurada, solo pasan licitaciones ejecutadas en esa zona.
    - **Clasificación requerida**: lista de grupos empresariales (ej. `C`, `G`); descarta licitaciones que exijan una clasificación que la empresa no posee.
+
+9. **RF-09**: Persistencia de documentos adjuntos obligatorios (PCAP, PPT, memoria técnica) en disco local (`downloads/<expedient_id>/`) durante el pipeline, con acceso posterior para descarga desde la interfaz.
+
+10. **RF-10**: Generación de comentarios narrativos por documento y recomendación global GO/NO GO por licitación mediante LLM, persistidos en base de datos junto con la puntuación y fecha de procesamiento.
 
 ## Requesitos no funcionales
 

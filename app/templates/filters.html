@@ -6,65 +6,39 @@
 
   <h1 class="text-2xl font-bold text-gray-900">Configuració de filtres</h1>
 
-  <!-- Success / error feedback (swapped by HTMX) -->
+  <!-- Success / error feedback (swapped por JS) -->
   <div id="filter-feedback"></div>
 
   <form id="filter-form" class="rounded-xl border bg-white shadow-sm p-6 space-y-6">
 
-    <!-- tipus_expedient: hardcoded to 1 (licitacions i contractes, only valid value for our use case) -->
+    <!-- tipus_expedient: fix 1 (licitacions i contractes) -->
     <input type="hidden" name="tipus_expedient" value="1" />
 
-    <!-- fase_vigent: hardcoded to 0 (only valid value accepted by the API) -->
-    <input type="hidden" name="fase_vigent" value="0" />
+    <!-- fase_vigent: fix 30 (Anunci de licitació en termini, RN-14) -->
+    <input type="hidden" name="fase_vigent" value="30" />
 
-    <!-- max_results -->
+    <!-- max_licitacions (RN-13: 1–100) -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">
-        Màxim de resultats per execució
+        Màxim de licitacions per execució
+        <span class="text-xs text-gray-400 font-normal">— mínim 1, màxim 100 (RN-13)</span>
       </label>
-      <input type="number" name="max_results" min="1" required
-             value="{{ filter.max_results if filter else 20 }}"
+      <input type="number" name="max_licitacions" min="1" max="100" required
+             value="{{ filter.max_licitacions if filter else 20 }}"
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
     </div>
 
-    <!-- min_pressupost -->
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">
-        Pressupost mínim (€)
-      </label>
-      <input type="number" name="min_pressupost" min="0" step="1000"
-             value="{{ filter.min_pressupost if filter else 0 }}"
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-    </div>
-
-    <!-- sector_keywords -->
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">
-        Paraules clau del sector
-      </label>
-      <input type="text" name="sector_keywords_raw"
-             value="{{ filter.sector_keywords | join(', ') if filter else '' }}"
-             placeholder="pavimentació, xarxa, -neteja, -jardineria"
-             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
-      <p class="mt-1 text-xs text-gray-400">
-        Separa les paraules per comes.<br>
-        Les paraules <strong>sense guió</strong> sumen punts si apareixen al títol (+5 pts cadascuna).<br>
-        Les paraules amb <strong>-</strong> davant <em>exclouen</em> directament la licitació.<br>
-        Exemple: <code>pavimentació, xarxa, -neteja, -jardineria</code>
-      </p>
-    </div>
-
-    <!-- max_pressupost -->
+    <!-- pressupost_maxim (RN-08) -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">
         Pressupost màxim (€) <span class="text-xs text-gray-400 font-normal">— 0 = sense límit (RN-08)</span>
       </label>
-      <input type="number" name="max_pressupost" min="0" step="1000"
-             value="{{ filter.max_pressupost if filter else 0 }}"
+      <input type="number" name="pressupost_maxim" min="0" step="1000"
+             value="{{ filter.pressupost_maxim if filter else 0 }}"
              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
     </div>
 
-    <!-- cpv_codes -->
+    <!-- cpv_codes (RN-07) -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">
         Codis CPV <span class="text-xs text-gray-400 font-normal">— buit = sense filtre (RN-07)</span>
@@ -78,15 +52,46 @@
       </p>
     </div>
 
-    <!-- exclude_alerta_futura -->
-    <div class="flex items-center gap-3">
-      <input type="checkbox" name="exclude_alerta_futura" id="exclude_alerta_futura"
-             {% if filter is none or filter.exclude_alerta_futura %}checked{% endif %}
-             class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400" />
-      <label for="exclude_alerta_futura" class="text-sm font-medium text-gray-700">
-        Excloure <span class="font-mono text-xs bg-gray-100 px-1 rounded">ALERTA_FUTURA</span>
-        <span class="ml-1 text-xs text-gray-400">(licitacions sense pressupost publicat)</span>
+    <!-- nuts_codes (RN-09) -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Codis NUTS <span class="text-xs text-gray-400 font-normal">— buit = sense filtre geogràfic (RN-09)</span>
       </label>
+      <input type="text" name="nuts_codes_raw"
+             value="{{ filter.nuts_codes | join(', ') if filter else '' }}"
+             placeholder="ES511, ES512"
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+    </div>
+
+    <!-- classifications (RN-10) -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Grups de classificació empresarial <span class="text-xs text-gray-400 font-normal">— buit = sense filtre (RN-10)</span>
+      </label>
+      <input type="text" name="classifications_raw"
+             value="{{ filter.classifications | join(', ') if filter else '' }}"
+             placeholder="C, G"
+             class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+    </div>
+
+    <!-- durada (RN-11) -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Durada mínima (dies) <span class="text-xs text-gray-400 font-normal">— 0 = sense límit (RN-11)</span>
+        </label>
+        <input type="number" name="durada_minima_dies" min="0"
+               value="{{ filter.durada_minima_dies if filter else 0 }}"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Durada màxima (dies) <span class="text-xs text-gray-400 font-normal">— 0 = sense límit (RN-11)</span>
+        </label>
+        <input type="number" name="durada_maxima_dies" min="0"
+               value="{{ filter.durada_maxima_dies if filter else 0 }}"
+               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      </div>
     </div>
 
     <div class="flex items-center gap-4 pt-2">
@@ -100,26 +105,28 @@
 
 </div>
 
-<!-- Submit form as JSON via fetch -->
 <script>
   document.getElementById('filter-form').addEventListener('submit', async function(evt) {
     evt.preventDefault();
-    const raw = document.querySelector('[name=sector_keywords_raw]').value || '';
-    const keywords = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
     const payload = {
-      tipus_expedient: parseInt(document.querySelector('[name=tipus_expedient]').value, 10),
-      fase_vigent:     parseInt(document.querySelector('[name=fase_vigent]').value, 10),
-      max_results:     parseInt(document.querySelector('[name=max_results]').value, 10),
-      min_pressupost:  parseFloat(document.querySelector('[name=min_pressupost]').value) || 0,
-      sector_keywords: keywords,
-      exclude_alerta_futura: document.getElementById('exclude_alerta_futura').checked,
-      max_pressupost: parseFloat(document.querySelector('[name=max_pressupost]').value) || 0,
-      cpv_codes: (document.querySelector('[name=cpv_codes_raw]').value || '')
-        .split(',').map(s => s.trim()).filter(s => s.length > 0),
+      tipus_expedient:         parseInt(document.querySelector('[name=tipus_expedient]').value, 10),
+      fase_vigent:             parseInt(document.querySelector('[name=fase_vigent]').value, 10),
+      max_licitacions:         parseInt(document.querySelector('[name=max_licitacions]').value, 10) || 20,
+      pressupost_maxim:        parseFloat(document.querySelector('[name=pressupost_maxim]').value) || 0,
+      cpv_codes:               (document.querySelector('[name=cpv_codes_raw]').value || '')
+                                 .split(',').map(s => s.trim()).filter(s => s.length > 0),
+      nuts_codes:              (document.querySelector('[name=nuts_codes_raw]').value || '')
+                                 .split(',').map(s => s.trim()).filter(s => s.length > 0),
+      classifications:         (document.querySelector('[name=classifications_raw]').value || '')
+                                 .split(',').map(s => s.trim()).filter(s => s.length > 0),
+      durada_minima_dies:      parseInt(document.querySelector('[name=durada_minima_dies]').value) || 0,
+      durada_maxima_dies:      parseInt(document.querySelector('[name=durada_maxima_dies]').value) || 0,
     };
+
     try {
       const resp = await fetch('/api/v1/filters', {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -129,7 +136,7 @@
       } else {
         const err = await resp.text();
         document.getElementById('filter-feedback').innerHTML =
-          '<div class="rounded-md bg-red-50 border border-red-300 p-3 text-sm text-red-800">❌ Error desant el filtre: ' + err + '</div>';
+          '<div class="rounded-md bg-red-50 border border-red-300 p-3 text-sm text-red-800">❌ Error: ' + err + '</div>';
       }
     } catch(e) {
       document.getElementById('filter-feedback').innerHTML =

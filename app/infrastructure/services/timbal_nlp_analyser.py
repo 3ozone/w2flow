@@ -79,7 +79,12 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             system_prompt=_SYSTEM_PROMPT,
         )
 
-    def analyse(self, expedient_id: str, documents: list[bytes]) -> DocumentAnalysis:
+    def analyse(
+        self,
+        expedient_id: str,
+        documents: list[bytes],
+        filenames: list[str] | None = None,
+    ) -> DocumentAnalysis:
         """Analitza els documents PDF d'una licitació i retorna la puntuació (RN-12).
 
         Envia els PDFs com a File objects a l'agent Timbal.
@@ -89,9 +94,11 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
         Args:
             expedient_id: Identificador únic de l'expedient analitzat.
             documents:    Llista de continguts binaris dels PDFs obligatoris.
+            filenames:    Noms dels fitxers (en el mateix ordre que documents),
+                          usats pel LLM per generar comentaris_per_doc.
 
         Returns:
-            DocumentAnalysis amb les puntuacions per cada criteri.
+            DocumentAnalysis amb les puntuacions, comentaris per document i recomanació.
         """
         if not documents:
             return DocumentAnalysis(
@@ -104,9 +111,11 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             )
 
         provider = self._model.split("/")[0]
+        names = filenames or [f"document_{i+1}.pdf" for i in range(len(documents))]
         if provider in _PDF_CAPABLE_PROVIDERS:
             prompt: str | list = [
-                f"Analitza els documents de la licitació {expedient_id}.",
+                f"Analitza els documents de la licitació {expedient_id}. "
+                f"Noms dels fitxers: {', '.join(names)}.",
                 *[File.validate(pdf_bytes) for pdf_bytes in documents],
             ]
         else:
@@ -117,8 +126,10 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
                     len(extracted), _MAX_TEXT_CHARS, expedient_id,
                 )
                 extracted = extracted[:_MAX_TEXT_CHARS]
+            filenames_hint = f"Noms dels fitxers: {', '.join(names)}.\n\n"
             prompt = (
-                f"Analitza els documents de la licitació {expedient_id}.\n\n{extracted}"
+                f"Analitza els documents de la licitació {expedient_id}.\n\n"
+                f"{filenames_hint}{extracted}"
                 if extracted
                 else f"Analitza la licitació {expedient_id}. No hi ha text disponible."
             )
@@ -144,6 +155,8 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             clausules_atipiques=scores["clausules_atipiques"],
             procediment=scores["procediment"],
             condicions_execucio=scores["condicions_execucio"],
+            comentaris_per_doc=scores["comentaris_per_doc"],
+            recomendacio=scores["recomendacio"],
         )
 
     @staticmethod
@@ -189,6 +202,8 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             "clausules_atipiques": 0,
             "procediment": 0,
             "condicions_execucio": 0,
+            "comentaris_per_doc": {},
+            "recomendacio": "",
         }
         try:
             start = raw.find("{")
@@ -196,6 +211,14 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             if start == -1 or end == 0:
                 return _zero
             data = json.loads(raw[start:end])
-            return {key: int(data.get(key, 0)) for key in _zero}
+            return {
+                "solvencia": int(data.get("solvencia", 0)),
+                "criteris_adjudicacio": int(data.get("criteris_adjudicacio", 0)),
+                "clausules_atipiques": int(data.get("clausules_atipiques", 0)),
+                "procediment": int(data.get("procediment", 0)),
+                "condicions_execucio": int(data.get("condicions_execucio", 0)),
+                "comentaris_per_doc": data.get("comentaris_per_doc", {}) or {},
+                "recomendacio": str(data.get("recomendacio", "")),
+            }
         except (json.JSONDecodeError, ValueError):
             return _zero

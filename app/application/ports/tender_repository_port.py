@@ -1,5 +1,6 @@
 """Port (contrato ABC) per persistir licitacions a la base de dades (RN-06)."""
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 from app.domain.entities.tender import Tender
 
@@ -44,4 +45,25 @@ class TenderRepositoryPort(ABC):
 
         Returns:
             Nombre enter de registres existents.
+        """
+
+    @abstractmethod
+    def update_score(
+        self,
+        expedient_id: str,
+        score_total: int,
+        score_traffic_light: str,
+        score_detall: str,
+        recomendacio: str,
+        created_at: datetime,
+    ) -> None:
+        """Desa la puntuació NLP i la recomanació LLM d'una licitació ja existent (RF-09).
+
+        Args:
+            expedient_id:        Identificador únic de l'expedient.
+            score_total:         Puntuació total NLP (0-100).
+            score_traffic_light: Semàfor de viabilitat ("green", "yellow" o "red").
+            score_detall:        JSON serialitzat amb el desglose per criteri.
+            recomendacio:        Text GO/NO GO generat pel LLM.
+            created_at:          Marca de temps del processament.
         """

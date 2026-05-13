@@ -21,6 +21,8 @@ from app.infrastructure.api.exception_handlers import (
 from app.infrastructure.api.filters_router import router as filters_router
 from app.infrastructure.api.pipeline_router import router as pipeline_router
 from app.infrastructure.api.tenders_router import router as tenders_router
+from app.infrastructure.api.documents_router import router as documents_router
+from app.infrastructure.api.ui_router import router as ui_router
 
 _settings = Settings()
 
@@ -63,6 +65,8 @@ app.add_exception_handler(Exception, generic_error_handler)
 # Routers
 # ---------------------------------------------------------------------------
 
+app.include_router(ui_router)
 app.include_router(pipeline_router)
 app.include_router(filters_router)
 app.include_router(tenders_router)
+app.include_router(documents_router)

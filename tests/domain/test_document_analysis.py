@@ -102,3 +102,33 @@ def test_does_not_raise_with_all_zeros():
         condicions_execucio=0,
     )
     assert analysis.to_score().total == 0
+
+
+# ---------------------------------------------------------------------------
+# Nous camps Fase J.2: comentaris_per_doc i recomendacio
+# ---------------------------------------------------------------------------
+
+def test_comentaris_per_doc_default_is_empty_dict():
+    """comentaris_per_doc ha de ser un dict buit per defecte (retrocompatibilitat)."""
+    analysis = _make_analysis()
+    assert analysis.comentaris_per_doc == {}
+
+
+def test_recomendacio_default_is_empty_string():
+    """recomendacio ha de ser cadena buida per defecte (retrocompatibilitat)."""
+    analysis = _make_analysis()
+    assert analysis.recomendacio == ""
+
+
+def test_comentaris_per_doc_accepta_mapa_filename_comentari():
+    """comentaris_per_doc ha d'acceptar un dict filename → comentari LLM."""
+    comentaris = {"PCAP.pdf": "Solvència ben definida.", "PPT.pdf": "Criteris clars."}
+    analysis = _make_analysis(comentaris_per_doc=comentaris)
+    assert analysis.comentaris_per_doc["PCAP.pdf"] == "Solvència ben definida."
+    assert analysis.comentaris_per_doc["PPT.pdf"] == "Criteris clars."
+
+
+def test_recomendacio_accepta_text_go():
+    """recomendacio ha d'acceptar text lliure GO/NO GO."""
+    analysis = _make_analysis(recomendacio="GO: La licitació és viable. Solvència adequada.")
+    assert analysis.recomendacio.startswith("GO")

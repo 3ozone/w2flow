@@ -1,5 +1,6 @@
 """DTO amb les dades aplanades d'una licitació puntuada per al panell (RF-06, RF-07)."""
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,8 @@ class ScoredTenderDTO:
         total:         Puntuació total NLP (0-100).
         traffic_light: Semàfor de viabilitat: "green", "yellow" o "red".
         detall:        Desglose de puntuació per criteri (RN-12).
+        recomendacio:  Recomanació global GO/NO GO generada pel LLM (RF-10).
+        created_at:    Data i hora de processament de la licitació (RF-12).
     """
 
     expedient_id: str
@@ -26,3 +29,5 @@ class ScoredTenderDTO:
     total: int
     traffic_light: str
     detall: dict[str, int] = field(default_factory=dict)
+    recomendacio: str = ""
+    created_at: datetime | None = None

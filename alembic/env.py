@@ -14,6 +14,7 @@ from app.infrastructure.database import Base
 # Importem els models perquè SQLAlchemy registri les taules al metadata
 import app.infrastructure.models.tender_model  # noqa: F401
 import app.infrastructure.models.filter_config_model  # noqa: F401
+import app.infrastructure.models.tender_document_model  # noqa: F401
 
 # Objecte de configuració d'Alembic
 config = context.config
