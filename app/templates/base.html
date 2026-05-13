@@ -25,19 +25,14 @@
                {% if path == '/' %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
             Cerca
           </a>
-          <a href="/licitaciones"
+          <a href="/licitacions"
              class="px-3 py-1.5 rounded-md transition-colors
-               {% if path == '/licitaciones' %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
+               {% if path == '/licitacions' %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
             Licitacions
           </a>
-          <a href="/reports"
+          <a href="/filtres"
              class="px-3 py-1.5 rounded-md transition-colors
-               {% if path.startswith('/reports') %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
-            Historial
-          </a>
-          <a href="/filters"
-             class="px-3 py-1.5 rounded-md transition-colors
-               {% if path.startswith('/filters') %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
+               {% if path.startswith('/filtres') %}bg-indigo-800 text-white{% else %}text-indigo-100 hover:bg-indigo-600{% endif %}">
             Configuració
           </a>
         </div>
@@ -61,19 +56,14 @@
              {% if path == '/' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
           Cerca
         </a>
-        <a href="/licitaciones"
+        <a href="/licitacions"
            class="px-3 py-2 rounded-md text-sm font-medium transition-colors
-             {% if path == '/licitaciones' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
+             {% if path == '/licitacions' %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
           Licitacions
         </a>
-        <a href="/reports"
+        <a href="/filtres"
            class="px-3 py-2 rounded-md text-sm font-medium transition-colors
-             {% if path.startswith('/reports') %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
-          Historial
-        </a>
-        <a href="/filters"
-           class="px-3 py-2 rounded-md text-sm font-medium transition-colors
-             {% if path.startswith('/filters') %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
+             {% if path.startswith('/filtres') %}bg-indigo-900 text-white{% else %}text-indigo-100 hover:bg-indigo-700{% endif %}">
           Configuració
         </a>
       </div>

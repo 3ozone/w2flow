@@ -49,10 +49,11 @@
   {% endif %}
 
   {% if state == "completed" %}
-  <!-- Trigger loading results into #search-results once pipeline completes -->
-  <div hx-get="/partials/search-results"
-       hx-trigger="load"
-       hx-target="#search-results"
-       hx-swap="innerHTML"></div>
+  <div class="mt-4 flex justify-end">
+    <a href="/licitacions"
+       class="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 transition-colors">
+      Veure licitacions →
+    </a>
+  </div>
   {% endif %}
 </div>

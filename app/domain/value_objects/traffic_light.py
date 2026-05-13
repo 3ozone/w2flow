@@ -1,15 +1,14 @@
-"""Value object representing the viability signal (traffic light) for a scored tender."""
+"""Value object representing the viability signal for a scored tender (RN-03)."""
 from enum import Enum
 
 
 class TrafficLight(Enum):
-    """Viability signal for a scored tender.
+    """Viability signal based on a numeric score.
 
-    Thresholds (RN-03, 100-point scoring scale):
-
-    * GREEN  — total ≥ 70  → recommended
-    * YELLOW — total ≥ 40  → worth reviewing
-    * RED    — total < 40  → not recommended
+    Thresholds (RN-03):
+    - GREEN  >= 70 — recommended
+    - YELLOW >= 40 — worth reviewing
+    - RED    <  40 — not recommended
     """
 
     GREEN = "green"
@@ -18,16 +17,7 @@ class TrafficLight(Enum):
 
     @classmethod
     def from_score(cls, total: int) -> "TrafficLight":
-        """Return the traffic light colour for a given score total.
-
-        Args:
-            total: The numeric score (0–100).
-
-        Returns:
-            :attr:`GREEN` if *total* ≥ 70,
-            :attr:`YELLOW` if *total* ≥ 40,
-            :attr:`RED` otherwise.
-        """
+        """Return the traffic light colour for a given score."""
         if total >= 70:
             return cls.GREEN
         if total >= 40:

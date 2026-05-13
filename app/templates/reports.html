@@ -1,46 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Informes{% endblock %}
+{% block title %}Licitacions{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold text-gray-900">Informes</h1>
-    <span class="text-sm text-gray-400">{{ reports | length }} informe(s)</span>
-  </div>
-
-  {% if reports %}
-  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-    {% for report_id, report in reports %}
-    {% set viable = report.get_viable_tenders() | length %}
-    {% set total = report.scored_tenders | length %}
-    {% set created = reports_created_at.get(report_id, "") %}
-    <a href="/reports/{{ report_id }}"
-       class="block rounded-xl border bg-white shadow-sm p-5 hover:shadow-md hover:border-indigo-200 transition-all">
-      <div class="flex items-start justify-between mb-3">
-        <div>
-          <span class="text-xs font-mono text-gray-400 truncate max-w-[140px]" title="{{ report_id }}">{{ report_id[:8] }}…</span>
-          {% if created %}<p class="text-xs text-gray-400 mt-0.5">{{ created }}</p>{% endif %}
-        </div>
-        <span class="rounded-full text-xs font-medium px-2 py-0.5
-          {% if viable > 0 %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-          {{ viable }} viables
-        </span>
-      </div>
-      <div class="text-3xl font-bold text-indigo-600 mb-1">{{ total }}</div>
-      <div class="text-sm text-gray-500">licitacions analitzades</div>
-      <div class="mt-4 text-xs text-indigo-500 font-medium">Veure detall →</div>
-    </a>
-    {% endfor %}
-  </div>
-
-  {% else %}
-  <div class="rounded-xl border bg-white shadow-sm p-10 text-center text-gray-400">
-    <p class="text-4xl mb-3">📊</p>
-    <p class="text-base">Encara no hi ha informes generats.</p>
-    <p class="text-sm mt-1">Executa el pipeline des del <a href="/" class="text-indigo-600 hover:underline">Dashboard</a>.</p>
-  </div>
-  {% endif %}
-
+<div class="rounded-xl border bg-white shadow-sm p-10 text-center text-gray-400">
+  <p class="text-4xl mb-3">📋</p>
+  <p class="text-base text-gray-600">Els resultats ara es mostren a <a href="/licitacions" class="text-indigo-600 hover:underline font-medium">Licitacions</a>.</p>
 </div>
 {% endblock %}

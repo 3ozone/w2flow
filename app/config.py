@@ -23,8 +23,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     notification_recipients: str = ""
 
-    # Timbal / Google Gemini
-    gemini_api_key: str = ""
+    # Timbal LLM — model i clau API configurables via .env
+    # Canviar de model = solo canviar LLM_MODEL + LLM_API_KEY al .env
+    # Providers amb PDF natiu: google, anthropic
+    # Providers via extracció de text (pymupdf): groq, openai, mistral...
+    llm_model: str = "google/gemini-2.0-flash"
+    llm_api_key: str = ""
 
     # Document storage
     download_dir: str = "downloads"
