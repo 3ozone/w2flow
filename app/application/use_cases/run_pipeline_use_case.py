@@ -76,7 +76,9 @@ class RunPipelineUseCase:
         scored_dtos = []
         for tender in candidates:
             logger.info("[PIPELINE] Processant tender: expedient_id=%s", tender.expedient_id)
-            documents = self._api.fetch_documents(tender.expedient_id, tender.publicacio_id)
+            documents, detail_fields = self._api.fetch_detail(tender.expedient_id, tender.publicacio_id)
+            for field, value in detail_fields.items():
+                setattr(tender, field, value)
             mandatory_docs = [doc for doc in documents if doc.is_mandatory()]
             logger.info(
                 "[PIPELINE] tender=%s — %d documents totals, %d obligatoris",
@@ -105,17 +107,32 @@ class RunPipelineUseCase:
             )
             score = analysis.to_score()
             processed_at = datetime.now(tz=timezone.utc)
+
+            for filename, comentari in analysis.comentaris_per_doc.items():
+                self._document_repository.update_comentari(
+                    expedient_id=tender.expedient_id,
+                    filename=filename,
+                    comentari=comentari,
+                )
+
             logger.info(
                 "[PIPELINE] tender=%s — score total=%s semàfor=%s",
                 tender.expedient_id, score.total, score.assign_traffic_light().value,
             )
 
+            traffic_light = score.assign_traffic_light().value
+            recomendacio = analysis.recomendacio
+            if recomendacio and traffic_light == "green" and (
+                recomendacio.startswith("NO GO") or recomendacio.startswith("REVISAR")
+            ):
+                traffic_light = "yellow"
+
             self._repository.update_score(
                 expedient_id=tender.expedient_id,
                 score_total=score.total,
-                score_traffic_light=score.assign_traffic_light().value,
+                score_traffic_light=traffic_light,
                 score_detall=json.dumps(score.detall),
-                recomendacio=analysis.recomendacio,
+                recomendacio=recomendacio,
                 created_at=processed_at,
             )
 
@@ -125,9 +142,9 @@ class RunPipelineUseCase:
                 organ=tender.organ,
                 pressupost=tender.pressupost,
                 total=score.total,
-                traffic_light=score.assign_traffic_light().value,
+                traffic_light=traffic_light,
                 detall=score.detall,
-                recomendacio=analysis.recomendacio,
+                recomendacio=recomendacio,
                 created_at=processed_at,
             ))
 

@@ -62,3 +62,23 @@ class SqlAlchemyTenderDocumentRepository(TenderDocumentRepositoryPort):
             )
             for row in rows
         ]
+
+    def update_comentari(self, expedient_id: str, filename: str, comentari: str) -> None:
+        """Actualitza el comentari LLM d'un document adjunt.
+
+        Args:
+            expedient_id: UUID de la licitació.
+            filename:     Nom del fitxer PDF.
+            comentari:    Comentari narratiu generat pel LLM (RF-10).
+        """
+        row = (
+            self._session.query(TenderDocumentModel)
+            .filter(
+                TenderDocumentModel.expedient_id == expedient_id,
+                TenderDocumentModel.filename == filename,
+            )
+            .first()
+        )
+        if row is not None:
+            row.comentari_llm = comentari
+            self._session.flush()

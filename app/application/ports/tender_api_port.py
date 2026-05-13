@@ -24,17 +24,27 @@ class TenderApiPort(ABC):
         """
 
     @abstractmethod
-    def fetch_documents(self, expedient_id: str, publicacio_id: int) -> list[Document]:
-        """Recupera la llista de documents adjunts d'una licitació (RF-04).
+    def fetch_detail(
+        self, expedient_id: str, publicacio_id: int
+    ) -> tuple[list[Document], dict]:
+        """Recupera documents i camps de detall d'una licitació (RF-04).
 
-        Crida l'endpoint /detall-publicacio-expedient i extreu els documents per secció.
+        Crida l'endpoint /detall-publicacio-expedient i retorna:
+        - La llista de documents adjunts classificats per secció.
+        - Un dict amb els camps de detall del Tender:
+          cpv_principal, data_limit, durada_dies, tipus_contracte_id,
+          procediment_id, nuts_code, classifications.
 
         Args:
             expedient_id:  Identificador UUID de l'expedient.
             publicacio_id: Identificador numèric de la publicació.
 
         Returns:
-            Llista de Document amb doc_type, doc_id, hash i metadades.
+            Tupla (documents, fields) on fields és un dict amb claus:
+            cpv_principal (str|None), data_limit (datetime|None),
+            durada_dies (int|None), tipus_contracte_id (int|None),
+            procediment_id (int|None), nuts_code (str|None),
+            classifications (tuple[str, ...]).
         """
 
     @abstractmethod

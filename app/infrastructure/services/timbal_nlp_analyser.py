@@ -48,10 +48,11 @@ Criteris de puntuació (RN-12):
   10 = condicions molt raonables, 0 = condicions molt exigents.
 
 Per a comentaris_per_doc: usa els noms de fitxer exactes que t'indiquen i escriu 1-2 frases
-en català explicant els aspectes clau d'aquell document per a la decisió GO/NO GO.
+en català explicant els aspectes clau d'aquell document per a la decisió GO/REVISAR/NO GO.
 
-Per a recomendacio: escriu "GO — <raonament>" o "NO GO — <raonament>" en 2-4 frases en català,
+Per a recomendacio: escriu "GO — <raonament>", "REVISAR — <raonament>" o "NO GO — <raonament>" en 2-4 frases en català,
 resumint per què la licitació és o no és viable per a l'empresa.
+Usa REVISAR quan hi ha aspectes positius però també dubtes significatius que requereixen anàlisi addicional.
 
 Respon ÚNICAMENT amb el JSON dels 7 camps, sense cap altre text."""
 
@@ -121,7 +122,8 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             )
 
         provider = self._model.split("/")[0]
-        names = filenames or [f"document_{i+1}.pdf" for i in range(len(documents))]
+        names = filenames or [
+            f"document_{i+1}.pdf" for i in range(len(documents))]
         if provider in _PDF_CAPABLE_PROVIDERS:
             prompt: str | list = [
                 f"Analitza els documents de la licitació {expedient_id}. "
@@ -147,7 +149,8 @@ class TimbalNlpAnalyser(NlpAnalyserPort):
             result = asyncio.run(self._agent(prompt=prompt).collect())
             raw_text = result.output.collect_text() if result.output else ""
         except Exception as exc:  # noqa: BLE001
-            logger.error("[NLP] Error del model %s per %s: %s", self._model, expedient_id, str(exc)[:300])
+            logger.error("[NLP] Error del model %s per %s: %s",
+                         self._model, expedient_id, str(exc)[:300])
             return DocumentAnalysis(
                 expedient_id=expedient_id,
                 solvencia=0,

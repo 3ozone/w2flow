@@ -25,3 +25,13 @@ class TenderDocumentRepositoryPort(ABC):
         Returns:
             Llista de TenderDocument, buida si no n'hi ha cap.
         """
+
+    @abstractmethod
+    def update_comentari(self, expedient_id: str, filename: str, comentari: str) -> None:
+        """Actualitza el comentari LLM d'un document adjunt.
+
+        Args:
+            expedient_id: UUID de la licitació.
+            filename:     Nom del fitxer PDF.
+            comentari:    Comentari narratiu generat pel LLM (RF-10).
+        """

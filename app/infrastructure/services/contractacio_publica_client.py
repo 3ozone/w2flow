@@ -1,4 +1,5 @@
 """Implementació HTTP del port TenderApiPort per a contractaciopublica.cat (RF-01, RF-02, RF-04)."""
+from datetime import datetime
 from app.domain.value_objects.document_type import DocumentType
 from app.domain.entities.tender import Tender
 from app.domain.entities.document import Document
@@ -18,6 +19,32 @@ _DOCUMENT_SECTIONS = [
     "annexos",
     "altresDocuments",
 ]
+
+
+def _parse_durada(durada_termini) -> int | None:
+    """Extreu el nombre de dies de durada del camp duradaTermini de l'API.
+
+    L'API pot retornar:
+    - int: dies directament (format simplificat)
+    - dict amb esDurada=True i dies: usa el camp dies
+    - dict amb esDurada=False i iniciTermini/fiTermini: calcula la diferència
+    - None o qualsevol altre tipus: retorna None
+    """
+    if durada_termini is None:
+        return None
+    if isinstance(durada_termini, int):
+        return durada_termini
+    if not isinstance(durada_termini, dict):
+        return None
+    if durada_termini.get("esDurada") and durada_termini.get("dies") is not None:
+        return durada_termini["dies"]
+    inici_raw = durada_termini.get("iniciTermini")
+    fi_raw = durada_termini.get("fiTermini")
+    if inici_raw and fi_raw:
+        inici = datetime.fromisoformat(inici_raw.replace("Z", "+00:00"))
+        fi = datetime.fromisoformat(fi_raw.replace("Z", "+00:00"))
+        return (fi - inici).days
+    return None
 
 
 class ContractacioPublicaClient(TenderApiPort):
@@ -85,22 +112,84 @@ class ContractacioPublicaClient(TenderApiPort):
                     len(result), len(all_items) - len(result))
         return result
 
-    def fetch_documents(self, expedient_id: str, publicacio_id: int) -> list[Document]:
-        """Obté la llista de documents d'una licitació des del seu detall.
+    def fetch_detail(
+        self, expedient_id: str, publicacio_id: int
+    ) -> tuple[list[Document], dict]:
+        """Obté documents i camps de detall d'una licitació des del seu detall.
 
         Args:
             expedient_id:  UUID de l'expedient.
             publicacio_id: Identificador numèric de la publicació.
 
         Returns:
-            Llista de Document extrets de les seccions conegudes del JSON.
+            Tupla (llista de Document, dict amb camps de detall del Tender).
 
         Raises:
             TenderApiError: Si la crida HTTP falla.
         """
         data = self._get(
             f"/detall-publicacio-expedient/{expedient_id}/{publicacio_id}")
-        return self._extract_documents(expedient_id, data)
+        return (
+            self._extract_documents(expedient_id, data),
+            self._parse_detail_fields(data),
+        )
+
+    @staticmethod
+    def _parse_detail_fields(data: dict) -> dict:
+        """Extreu els camps de detall del Tender del JSON de /detall-publicacio-expedient.
+
+        Args:
+            data: JSON complet de /detall-publicacio-expedient.
+
+        Returns:
+            Dict amb claus: cpv_principal, data_limit, durada_dies,
+            tipus_contracte_id, procediment_id, nuts_code, classifications.
+        """
+        publicacio = (data.get("dades") or {}).get("publicacio") or {}
+        basics = publicacio.get("dadesBasiquesPublicacio") or {}
+        dades_pub = publicacio.get("dadesPublicacio") or {}
+        lots = publicacio.get("dadesPublicacioLot") or []
+        lot = lots[0] if lots else None
+
+        # Tipus contracte i procediment
+        tipus_obj = basics.get("tipusContracte") or {}
+        procediment_obj = basics.get("procedimentAdjudicacio") or {}
+        tipus_contracte_id = tipus_obj.get("id") if tipus_obj else None
+        procediment_id = procediment_obj.get("id") if procediment_obj else None
+
+        # Data límit
+        data_limit_raw = dades_pub.get("dataTerminiPresentacioOSolicitud")
+        data_limit = datetime.fromisoformat(data_limit_raw) if data_limit_raw else None
+
+        # Camps de lot
+        if lot:
+            cpv_obj = lot.get("cpvPrincipal") or {}
+            cpv_principal = cpv_obj.get("codi") if cpv_obj else None
+            durada_dies = _parse_durada(lot.get("duradaTermini"))
+            lloc_obj = lot.get("llocExecucio") or {}
+            nuts_code = lloc_obj.get("codiNuts") if lloc_obj else None
+            classificacions_raw = lot.get("classificacionsEmpresarials")
+            classificacions = classificacions_raw if isinstance(classificacions_raw, list) else []
+            classifications = tuple(
+                c["grupClassificacioEmpresarial"]
+                for c in classificacions
+                if isinstance(c, dict) and c.get("grupClassificacioEmpresarial")
+            )
+        else:
+            cpv_principal = None
+            durada_dies = None
+            nuts_code = None
+            classifications = ()
+
+        return {
+            "cpv_principal": cpv_principal,
+            "data_limit": data_limit,
+            "durada_dies": durada_dies,
+            "tipus_contracte_id": tipus_contracte_id,
+            "procediment_id": procediment_id,
+            "nuts_code": nuts_code,
+            "classifications": classifications,
+        }
 
     def download_document(self, doc_id: int, hash: str) -> bytes:  # noqa: A002
         """Descarrega els bytes d'un document PDF.
@@ -217,6 +306,8 @@ class ContractacioPublicaClient(TenderApiPort):
             publicacio_id=publicacio_id,
             organ=item["organ"],
             titol=item["titol"],
+            pressupost=item.get("pressupostLicitacio"),
+            codi_expedient=item.get("codiExpedient"),
         )
 
     @staticmethod

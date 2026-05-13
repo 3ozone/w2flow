@@ -157,9 +157,38 @@
               <!-- 3. Recomanació GO/NO GO -->
               {% if t.recomendacio %}
               <div class="rounded-lg border px-4 py-3 text-sm
-                {% if t.recomendacio.startswith('GO') %}bg-green-50 border-green-200 text-green-800
+                {% if t.recomendacio.startswith('GO') and tl == 'green' %}bg-green-50 border-green-200 text-green-800
+                {% elif t.recomendacio.startswith('GO') and tl == 'yellow' %}bg-yellow-50 border-yellow-200 text-yellow-800
+                {% elif t.recomendacio.startswith('REVISAR') %}bg-yellow-50 border-yellow-200 text-yellow-800
                 {% else %}bg-red-50 border-red-200 text-red-800{% endif %}">
                 <span class="font-semibold">Recomanació:</span> {{ t.recomendacio }}
+              </div>
+              {% endif %}
+
+              <!-- 4. Metadades de detall -->
+              {% if t.codi_expedient or t.cpv_principal or t.durada_dies or t.data_limit or t.nuts_code or t.tipus_contracte_id %}
+              <div class="flex flex-wrap gap-2 text-xs text-gray-600">
+                {% if t.codi_expedient %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">Exp: <strong>{{ t.codi_expedient }}</strong></span>
+                {% endif %}
+                {% if t.cpv_principal %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">CPV: <strong>{{ t.cpv_principal }}</strong></span>
+                {% endif %}
+                {% if t.durada_dies %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">Durada: <strong>{{ t.durada_dies }} dies</strong></span>
+                {% endif %}
+                {% if t.data_limit %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">Termini: <strong>{{ t.data_limit.strftime('%d/%m/%Y') }}</strong></span>
+                {% endif %}
+                {% if t.nuts_code %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">NUTS: <strong>{{ t.nuts_code }}</strong></span>
+                {% endif %}
+                {% if t.tipus_contracte_id %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">Tipus: <strong>{{ t.tipus_contracte_id }}</strong></span>
+                {% endif %}
+                {% if t.procediment_id %}
+                <span class="rounded-full bg-gray-100 px-3 py-1">Procediment: <strong>{{ t.procediment_id }}</strong></span>
+                {% endif %}
               </div>
               {% endif %}
 

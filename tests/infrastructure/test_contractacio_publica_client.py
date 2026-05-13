@@ -483,13 +483,13 @@ class TestFetchTenders:
 # ---------------------------------------------------------------------------
 
 class TestFetchDocuments:
-    """Tests per al mètode fetch_documents."""
+    """Tests per al mètode fetch_detail (extracció de documents)."""
 
     def test_retorna_documents_de_seccions_conegudes(self):
         """Extreu documents de les seccions PCAP i PPT."""
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE):
-            result = client.fetch_documents(
+            result, _ = client.fetch_detail(
                 expedient_id="f0b5b0e9-474a-482f-b917-908b85d2ca97",
                 publicacio_id=300688406,
             )
@@ -501,7 +501,7 @@ class TestFetchDocuments:
         """Assigna DocumentType correcte segons la secció JSON."""
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE):
-            result = client.fetch_documents("exp-id", 1)
+            result, _ = client.fetch_detail("exp-id", 1)
 
         tipus = {d.doc_type for d in result}
         assert DocumentType.PCAP in tipus
@@ -511,7 +511,7 @@ class TestFetchDocuments:
         """Mapeja doc_id, titol, hash i mida correctament."""
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE):
-            result = client.fetch_documents("exp-id", 1)
+            result, _ = client.fetch_detail("exp-id", 1)
 
         pcap = next(d for d in result if d.doc_type == DocumentType.PCAP)
         assert pcap.doc_id == 101
@@ -523,7 +523,7 @@ class TestFetchDocuments:
         """Retorna llista buida si totes les seccions estan buides."""
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_SENSE_LOT_RESPONSE):
-            result = client.fetch_documents("exp-id", 1)
+            result, _ = client.fetch_detail("exp-id", 1)
 
         assert result == []
 
@@ -535,7 +535,7 @@ class TestFetchDocuments:
         """
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE_NIUADA):
-            result = client.fetch_documents("exp-niuat-uuid", 300688406)
+            result, _ = client.fetch_detail("exp-niuat-uuid", 300688406)
 
         assert len(result) == 2
         tipus = {d.doc_type for d in result}
@@ -549,7 +549,7 @@ class TestFetchDocuments:
         """
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE_NIUADA):
-            result = client.fetch_documents("exp-niuat-uuid", 300688406)
+            result, _ = client.fetch_detail("exp-niuat-uuid", 300688406)
 
         pcap = next(d for d in result if d.doc_type == DocumentType.PCAP)
         assert pcap.doc_id == 201
@@ -564,7 +564,7 @@ class TestFetchDocuments:
         """
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE_SECCIO_DICT):
-            result = client.fetch_documents("exp-seccio-dict-uuid", 500001)
+            result, _ = client.fetch_detail("exp-seccio-dict-uuid", 500001)
 
         assert isinstance(result, list)
         assert len(result) == 1
@@ -579,7 +579,7 @@ class TestFetchDocuments:
         """
         client = _make_client()
         with patch.object(client, "_get", return_value=_DETALL_RESPONSE_SECCIONS_DICT_REAL):
-            result = client.fetch_documents("exp-dict-real-uuid", 600001)
+            result, _ = client.fetch_detail("exp-dict-real-uuid", 600001)
 
         assert len(result) == 2
         tipus = {d.doc_type for d in result}
@@ -613,3 +613,187 @@ class TestDownloadDocument:
             result = client.download_document(doc_id=999, hash="nohash")
 
         assert result == b""
+
+
+# ---------------------------------------------------------------------------
+# Tests — _parse_tender (M.1)
+# ---------------------------------------------------------------------------
+
+class TestParseTender:
+    """Tests per a l'extracció de pressupost i codi_expedient a _parse_tender."""
+
+    def test_extreu_pressupost_de_cerca_avancada(self):
+        """Extreu pressupostLicitacio → pressupost quan el camp és present."""
+        client = _make_client()
+        item = {
+            "expedientId": "exp-pressupost-uuid",
+            "id": 123456,
+            "organ": "Ajuntament de Test",
+            "titol": "Licitació amb pressupost",
+            "pressupostLicitacio": 50000.0,
+            "codiExpedient": None,
+            "fasesVigents": {"ANUNCI_LICITACIO": {"idPublicacio": 123456}},
+        }
+        response = {"content": [item]}
+        with patch.object(client, "_get", return_value=response):
+            result = client.fetch_tenders({})
+
+        assert result[0].pressupost == 50000.0
+
+    def test_extreu_codi_expedient_de_cerca_avancada(self):
+        """Extreu codiExpedient → codi_expedient quan el camp és present."""
+        client = _make_client()
+        item = {
+            "expedientId": "exp-codi-uuid",
+            "id": 654321,
+            "organ": "Generalitat de Catalunya",
+            "titol": "Licitació amb codi expedient",
+            "pressupostLicitacio": None,
+            "codiExpedient": "EXP-2026-001",
+            "fasesVigents": {"ANUNCI_LICITACIO": {"idPublicacio": 654321}},
+        }
+        response = {"content": [item]}
+        with patch.object(client, "_get", return_value=response):
+            result = client.fetch_tenders({})
+
+        assert result[0].codi_expedient == "EXP-2026-001"
+
+    def test_pressupost_i_codi_expedient_son_none_si_camps_absents(self):
+        """pressupost i codi_expedient son None si els camps de l'API son null."""
+        client = _make_client()
+        item = {
+            "expedientId": "exp-nulls-uuid",
+            "id": 111111,
+            "organ": "Diputació de Barcelona",
+            "titol": "Licitació sense pressupost ni codi",
+            "pressupostLicitacio": None,
+            "codiExpedient": None,
+            "fasesVigents": {"ANUNCI_LICITACIO": {"idPublicacio": 111111}},
+        }
+        response = {"content": [item]}
+        with patch.object(client, "_get", return_value=response):
+            result = client.fetch_tenders({})
+
+        assert result[0].pressupost is None
+        assert result[0].codi_expedient is None
+
+
+# ---------------------------------------------------------------------------
+# Tests — _parse_detail_fields (N.2)
+# ---------------------------------------------------------------------------
+
+class TestParseDetailFields:
+    """Tests per a l'extracció dels 7 camps de detall del Tender a _parse_detail_fields."""
+
+    def test_extreu_tipus_contracte_i_procediment(self):
+        """Extreu tipusContracte.id i procedimentAdjudicacio.id de dadesBasiquesPublicacio."""
+        fields = ContractacioPublicaClient._parse_detail_fields(_DETALL_RESPONSE)
+
+        assert fields["tipus_contracte_id"] == 1
+        assert fields["procediment_id"] == 2
+
+    def test_extreu_data_limit(self):
+        """Parseja dataTerminiPresentacioOSolicitud com a datetime."""
+        from datetime import datetime
+        fields = ContractacioPublicaClient._parse_detail_fields(_DETALL_RESPONSE)
+
+        assert isinstance(fields["data_limit"], datetime)
+        assert fields["data_limit"].year == 2026
+        assert fields["data_limit"].month == 12
+        assert fields["data_limit"].day == 31
+
+    def test_extreu_camps_de_lot(self):
+        """Extreu cpv_principal, durada_dies, nuts_code i classifications del primer lot."""
+        fields = ContractacioPublicaClient._parse_detail_fields(_DETALL_RESPONSE)
+
+        assert fields["cpv_principal"] == "45000000-7"
+        assert fields["durada_dies"] == 180
+        assert fields["nuts_code"] == "ES512"
+        assert fields["classifications"] == ("C", "G")
+
+    def test_camps_de_lot_son_none_si_no_hi_ha_lots(self):
+        """Retorna None / tuple buida per als camps de lot quan dadesPublicacioLot és buit."""
+        fields = ContractacioPublicaClient._parse_detail_fields(_DETALL_SENSE_LOT_RESPONSE)
+
+        assert fields["cpv_principal"] is None
+        assert fields["durada_dies"] is None
+        assert fields["nuts_code"] is None
+        assert fields["classifications"] == ()
+
+    def test_camps_basics_son_none_si_tipusContracte_es_null(self):
+        """Retorna None per a tipus_contracte_id i procediment_id quan l'API retorna null."""
+        fields = ContractacioPublicaClient._parse_detail_fields(_DETALL_SENSE_LOT_RESPONSE)
+
+        assert fields["tipus_contracte_id"] is None
+        assert fields["procediment_id"] is None
+
+    def test_data_limit_es_none_si_camp_es_null(self):
+        """Retorna None per a data_limit quan dataTerminiPresentacioOSolicitud és null."""
+        fields = ContractacioPublicaClient._parse_detail_fields(_DETALL_SENSE_LOT_RESPONSE)
+
+        assert fields["data_limit"] is None
+
+    def test_durada_dies_quan_api_retorna_dict_amb_esDurada_false(self):
+        """Calcula durada_dies des d'iniciTermini i fiTermini quan esDurada=False (format real API)."""
+        data = {
+            "dades": {"publicacio": {
+                "dadesBasiquesPublicacio": {},
+                "dadesPublicacio": {},
+                "dadesPublicacioLot": [{
+                    "cpvPrincipal": None,
+                    "llocExecucio": None,
+                    "classificacionsEmpresarials": [],
+                    "duradaTermini": {
+                        "esDurada": False,
+                        "anys": None, "mesos": None, "dies": None,
+                        "iniciTermini": "2026-05-14T22:00:00.000Z",
+                        "fiTermini": "2026-08-13T22:00:00.000Z",
+                        "observacions": None,
+                    },
+                }],
+            }}
+        }
+        fields = ContractacioPublicaClient._parse_detail_fields(data)
+
+        assert fields["durada_dies"] == 91  # 14 maig → 13 agost = 91 dies
+
+    def test_durada_dies_quan_api_retorna_dict_amb_esDurada_true(self):
+        """Usa el camp dies directament quan esDurada=True i dies no és None."""
+        data = {
+            "dades": {"publicacio": {
+                "dadesBasiquesPublicacio": {},
+                "dadesPublicacio": {},
+                "dadesPublicacioLot": [{
+                    "cpvPrincipal": None,
+                    "llocExecucio": None,
+                    "classificacionsEmpresarials": [],
+                    "duradaTermini": {
+                        "esDurada": True,
+                        "anys": None, "mesos": None, "dies": 90,
+                        "iniciTermini": None, "fiTermini": None,
+                        "observacions": None,
+                    },
+                }],
+            }}
+        }
+        fields = ContractacioPublicaClient._parse_detail_fields(data)
+
+        assert fields["durada_dies"] == 90
+
+    def test_classifications_es_buida_si_api_retorna_string_buit(self):
+        """Retorna tuple buida si classificacionsEmpresarials és un string (no llista)."""
+        data = {
+            "dades": {"publicacio": {
+                "dadesBasiquesPublicacio": {},
+                "dadesPublicacio": {},
+                "dadesPublicacioLot": [{
+                    "cpvPrincipal": None,
+                    "llocExecucio": None,
+                    "duradaTermini": None,
+                    "classificacionsEmpresarials": "[]",
+                }],
+            }}
+        }
+        fields = ContractacioPublicaClient._parse_detail_fields(data)
+
+        assert fields["classifications"] == ()

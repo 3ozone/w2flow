@@ -72,7 +72,7 @@ def _make_use_case(
     mock_fetch.execute.return_value = candidates
 
     mock_api = MagicMock()
-    mock_api.fetch_documents.return_value = documents
+    mock_api.fetch_detail.return_value = (documents, {})
     mock_api.download_document.return_value = pdf_bytes
 
     mock_nlp = MagicMock()
@@ -85,7 +85,8 @@ def _make_use_case(
         expedient_id="exp-001",
         filename="PCAP.pdf",
         filepath="downloads/exp-001/PCAP.pdf",
-        created_at=__import__("datetime").datetime(2026, 5, 13, tzinfo=__import__("datetime").timezone.utc),
+        created_at=__import__("datetime").datetime(
+            2026, 5, 13, tzinfo=__import__("datetime").timezone.utc),
     )
 
     mock_doc_repo = MagicMock()
@@ -114,7 +115,8 @@ class TestRunPipelineUseCase:
         document = _make_document()
         analysis = _make_analysis()
         config = _make_config()
-        use_case, _, _, _, _, _, _ = _make_use_case([tender], [document], analysis)
+        use_case, _, _, _, _, _, _ = _make_use_case(
+            [tender], [document], analysis)
 
         result = use_case.execute(config=config, today=date(2026, 5, 9))
 
@@ -127,7 +129,8 @@ class TestRunPipelineUseCase:
         tender = _make_tender()
         analysis = _make_analysis()
         config = _make_config()
-        use_case, _, _, _, _, _, _ = _make_use_case([tender], [_make_document()], analysis)
+        use_case, _, _, _, _, _, _ = _make_use_case(
+            [tender], [_make_document()], analysis)
 
         result = use_case.execute(config=config, today=date(2026, 5, 9))
 
@@ -144,7 +147,8 @@ class TestRunPipelineUseCase:
         tender = _make_tender()
         analysis = _make_analysis()  # total=75 → viable
         config = _make_config()
-        use_case, _, _, _, _, _, _ = _make_use_case([tender], [_make_document()], analysis)
+        use_case, _, _, _, _, _, _ = _make_use_case(
+            [tender], [_make_document()], analysis)
 
         result = use_case.execute(config=config, today=date(2026, 5, 9))
 
@@ -251,7 +255,8 @@ class TestRunPipelineUseCase:
         use_case.execute(config=config, today=date(2026, 5, 9))
 
         assert mock_repository.save.call_count == 2
-        saved_ids = {call.args[0].expedient_id for call in mock_repository.save.call_args_list}
+        saved_ids = {
+            call.args[0].expedient_id for call in mock_repository.save.call_args_list}
         assert saved_ids == {"exp-001", "exp-002"}
 
     def test_saves_documents_to_storage(self):
@@ -315,3 +320,166 @@ class TestRunPipelineUseCase:
         result = use_case.execute(config=config, today=date(2026, 5, 9))
 
         assert result.tenders[0].recomendacio == "GO: La licitació és viable."
+
+    def test_semaforo_baixa_a_yellow_quan_no_go_i_score_verd(self):
+        """Si el LLM diu NO GO però el score és ≥ 70, el semàfor ha de ser yellow, no green."""
+        tender = _make_tender()
+        no_go_analysis = DocumentAnalysis(
+            expedient_id="exp-001",
+            solvencia=25,
+            criteris_adjudicacio=20,
+            clausules_atipiques=15,
+            procediment=10,
+            condicions_execucio=5,
+            recomendacio="NO GO — La licitació presenta reptes.",
+        )  # total=75 → numèricament verd, però LLM diu NO GO
+        config = _make_config()
+        use_case, _, _, _, _, _, _ = _make_use_case(
+            [tender], [_make_document()], no_go_analysis
+        )
+
+        result = use_case.execute(config=config, today=date(2026, 5, 9))
+
+        assert result.tenders[0].traffic_light == "yellow"
+        assert result.tenders[0].recomendacio == "NO GO — La licitació presenta reptes."
+
+    def test_semaforo_baixa_a_yellow_quan_revisar_i_score_verd(self):
+        """Si el LLM diu REVISAR i el score és ≥ 70, el semàfor ha de ser yellow, no green."""
+        tender = _make_tender()
+        revisar_analysis = DocumentAnalysis(
+            expedient_id="exp-001",
+            solvencia=25,
+            criteris_adjudicacio=20,
+            clausules_atipiques=15,
+            procediment=10,
+            condicions_execucio=5,
+            recomendacio="REVISAR — Hi ha aspectes que requereixen anàlisi addicional.",
+        )  # total=75 → numèricament verd, però LLM diu REVISAR
+        config = _make_config()
+        use_case, _, _, _, _, _, _ = _make_use_case(
+            [tender], [_make_document()], revisar_analysis
+        )
+
+        result = use_case.execute(config=config, today=date(2026, 5, 9))
+
+        assert result.tenders[0].traffic_light == "yellow"
+
+    def test_semaforo_es_manté_yellow_quan_revisar_i_score_groc(self):
+        """Si el LLM diu REVISAR i el score ja és yellow (40-69), el semàfor ha de romandre yellow."""
+        tender = _make_tender()
+        revisar_yellow_analysis = DocumentAnalysis(
+            expedient_id="exp-001",
+            solvencia=15,
+            criteris_adjudicacio=12,
+            clausules_atipiques=10,
+            procediment=8,
+            condicions_execucio=4,
+            recomendacio="REVISAR — Alguns criteris son dubtosos.",
+        )  # total=49 → numèricament groc
+        config = _make_config()
+        use_case, _, _, _, _, _, _ = _make_use_case(
+            [tender], [_make_document()], revisar_yellow_analysis
+        )
+
+        result = use_case.execute(config=config, today=date(2026, 5, 9))
+
+        assert result.tenders[0].traffic_light == "yellow"
+
+
+# ---------------------------------------------------------------------------
+# Tests — N.4: fetch_detail substitueix fetch_documents
+# ---------------------------------------------------------------------------
+
+_DETAIL_FIELDS = {
+    "cpv_principal": "45000000-7",
+    "data_limit": None,
+    "durada_dies": 180,
+    "tipus_contracte_id": 1,
+    "procediment_id": 2,
+    "nuts_code": "ES512",
+    "classifications": ("C", "G"),
+}
+
+
+def _make_use_case_fetch_detail(
+    candidates: list[Tender],
+    documents: list[Document],
+    analysis: DocumentAnalysis,
+    detail_fields: dict | None = None,
+    pdf_bytes: bytes = b"pdf-content",
+):
+    """Helper que configura mock_api amb fetch_detail -> (documents, fields)."""
+    fields = detail_fields if detail_fields is not None else _DETAIL_FIELDS
+
+    mock_fetch = MagicMock()
+    mock_fetch.execute.return_value = candidates
+
+    mock_api = MagicMock()
+    mock_api.fetch_detail.return_value = (documents, fields)
+    mock_api.download_document.return_value = pdf_bytes
+
+    mock_nlp = MagicMock()
+    mock_nlp.analyse.return_value = analysis
+
+    mock_repository = MagicMock(spec=TenderRepositoryPort)
+
+    mock_storage = MagicMock(spec=DocumentStoragePort)
+    mock_storage.save.return_value = TenderDocument(
+        expedient_id="exp-001",
+        filename="PCAP.pdf",
+        filepath="downloads/exp-001/PCAP.pdf",
+        created_at=__import__("datetime").datetime(
+            2026, 5, 13, tzinfo=__import__("datetime").timezone.utc),
+    )
+
+    mock_doc_repo = MagicMock()
+
+    use_case = RunPipelineUseCase(
+        fetch_candidates=mock_fetch,
+        api=mock_api,
+        nlp=mock_nlp,
+        repository=mock_repository,
+        document_storage=mock_storage,
+        document_repository=mock_doc_repo,
+    )
+    return use_case, mock_api, mock_repository
+
+
+class TestFetchDetail:
+    """Tests que verifiquen que RunPipelineUseCase usa fetch_detail i aplica els camps al Tender."""
+
+    def test_crida_fetch_detail_en_lloc_de_fetch_documents(self):
+        """Ha de cridar api.fetch_detail() per obtenir documents i camps de detall."""
+        tender = _make_tender()
+        document = _make_document()
+        analysis = _make_analysis()
+        config = _make_config()
+        use_case, mock_api, _ = _make_use_case_fetch_detail(
+            [tender], [document], analysis)
+
+        use_case.execute(config=config, today=date(2026, 5, 9))
+
+        mock_api.fetch_detail.assert_called_once_with(
+            tender.expedient_id, tender.publicacio_id
+        )
+        mock_api.fetch_documents.assert_not_called()
+
+    def test_aplica_els_camps_de_detall_al_tender_abans_de_desar(self):
+        """Els camps retornats per fetch_detail s'han d'aplicar al Tender abans de repository.save()."""
+        tender = _make_tender()
+        document = _make_document()
+        analysis = _make_analysis()
+        config = _make_config()
+        use_case, _, mock_repository = _make_use_case_fetch_detail(
+            [tender], [document], analysis
+        )
+
+        use_case.execute(config=config, today=date(2026, 5, 9))
+
+        saved_tender = mock_repository.save.call_args.args[0]
+        assert saved_tender.cpv_principal == "45000000-7"
+        assert saved_tender.durada_dies == 180
+        assert saved_tender.nuts_code == "ES512"
+        assert saved_tender.classifications == ("C", "G")
+        assert saved_tender.tipus_contracte_id == 1
+        assert saved_tender.procediment_id == 2

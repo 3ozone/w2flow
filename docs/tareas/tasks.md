@@ -424,3 +424,111 @@ mai genera els camps `comentaris_per_doc` ni `recomendacio`, i la UI sempre most
 - [x] `IMPL` `timbal_nlp_analyser._SYSTEM_PROMPT` — ampliat per demanar 7 camps al LLM:
   5 puntuacions numèriques + `comentaris_per_doc` (per fitxer) + `recomendacio` (GO/NO GO en 2-4 frases).
   Instrucció final: "Respon ÚNICAMENT amb el JSON dels 7 camps, sense cap altre text."
+
+---
+
+## Fase L — Persistir comentaris LLM per document (bugfix pipeline)
+
+**Context**: El LLM ja retorna `comentaris_per_doc` correctament (Fase K), però la UI mostra
+"Sense comentari LLM." per a tots els documents. El motiu: `RunPipelineUseCase` guarda els
+documents a BD **abans** d'executar el NLP, i mai actualitza el camp `comentari_llm` amb
+els comentaris retornats per l'anàlisi. No hi ha lògica de negoci — és pura persistència.
+
+**No cal test** — no hi ha condicions, càlculs ni invariants de domini. És cablejat d'infraestructura.
+
+### L.1 — Afegir `update_comentari()` al port `TenderDocumentRepositoryPort` ✅
+
+- [x] `IMPL` `TenderDocumentRepositoryPort` — afegit mètode abstracte
+  `update_comentari(expedient_id: str, filename: str, comentari: str) -> None`
+
+### L.2 — Implementar `update_comentari()` a `SqlAlchemyTenderDocumentRepository` ✅
+
+- [x] `IMPL` `SqlAlchemyTenderDocumentRepository.update_comentari()` — cerca el registre per
+  `expedient_id` + `filename` i actualitza `comentari_llm`. Usa `session.flush()`.
+
+### L.3 — Cridar `update_comentari()` a `RunPipelineUseCase` després del NLP ✅
+
+- [x] `IMPL` `RunPipelineUseCase.execute()` — després de `self._nlp.analyse()`, itera
+  `analysis.comentaris_per_doc.items()` i crida `self._document_repository.update_comentari()`
+  per cada parella `(filename, comentari)`.
+
+---
+
+## Fase M — Extreure `pressupost` i `codi_expedient` de `/cerca-avancada` (bugfix dades buides)
+
+**Context**: La columna "Pressupost" de `/licitacions` sempre mostra `—`. La causa: `_parse_tender()`
+construeix el `Tender` amb només 4 camps (`expedient_id`, `publicacio_id`, `organ`, `titol`) i ignora
+els camps `pressupostLicitacio` i `codiExpedient` que `/cerca-avancada` **ja retorna** al nivell arrel
+de cada ítem (confirmat al `cerca-avancada-response.json`). Cap crida extra a l'API és necessària.
+
+**Objectiu**: Extreure `pressupostLicitacio` → `pressupost` i `codiExpedient` → `codi_expedient`
+directament des de `_parse_tender()` sense cap cost addicional de xarxa.
+
+**Impacte**: Només `ContractacioPublicaClient._parse_tender()` (2 línies).
+
+### M.1 — Test de `_parse_tender()` amb `pressupost` i `codi_expedient` ✅
+
+- [x] `TEST` `ContractacioPublicaClient._parse_tender()` — donat un ítem amb `pressupostLicitacio=50000.0`
+  i `codiExpedient="EXP-2026-001"`, el `Tender` resultant té `pressupost=50000.0` i
+  `codi_expedient="EXP-2026-001"`. Cas null: si ambdós camps son `null`, el `Tender` té `None`.
+
+### M.2 — Implementar l'extracció a `_parse_tender()` ✅
+
+- [x] `IMPL` `ContractacioPublicaClient._parse_tender()` — afegir
+  `pressupost=item.get("pressupostLicitacio")` i `codi_expedient=item.get("codiExpedient")`
+  al constructor de `Tender`.
+
+---
+
+## Fase N — Enriquir el Tender amb tots els camps del detall de l'API ✅
+
+**Contexto**: `fetch_documents()` ya llama a `/detall-publicacio-expedient` pero descarta todos
+los campos excepto los documentos PDF. Por eso `cpv_principal`, `data_limit`, `durada_dies`,
+`tipus_contracte_id`, `procediment_id`, `nuts_code` y `classifications` siempre son NULL en la BD.
+`Tender` ya tiene todos esos campos definidos — solo falta extraerlos del JSON de detalle.
+
+**Diseño simplificado** — sin tipos nuevos, sin llamadas extra a la API:
+- Cambiar puerto: `fetch_documents` → `fetch_detail() -> tuple[list[Document], dict]`
+- El `dict` devuelve los 7 campos de detalle del `Tender` ya tipados
+- El pipeline aplica el dict al `Tender` antes de `save()` (que ya persiste todos los campos)
+- `save()` no requiere cambios — ya guarda todos los campos de `Tender`
+
+**Paths del JSON de detalle** (`dades.publicacio.*`):
+| Campo Tender | Path JSON |
+|---|---|
+| `data_limit` | `dadesPublicacio.dataTerminiPresentacioOSolicitud` |
+| `tipus_contracte_id` | `dadesBasiquesPublicacio.tipusContracte.id` |
+| `procediment_id` | `dadesBasiquesPublicacio.procedimentAdjudicacio.id` |
+| `cpv_principal` | `dadesPublicacioLot[0].cpvPrincipal.codi` |
+| `durada_dies` | `dadesPublicacioLot[0].duradaTermini` |
+| `nuts_code` | `dadesPublicacioLot[0].llocExecucio.codiNuts` |
+| `classifications` | `dadesPublicacioLot[0].classificacionsEmpresarials[].grupClassificacioEmpresarial` |
+
+### N.1 — Actualizar port `TenderApiPort` ✅
+
+- [x] `IMPL` `TenderApiPort` — substituir `fetch_documents(expedient_id, publicacio_id) -> list[Document]`
+  per `fetch_detail(expedient_id, publicacio_id) -> tuple[list[Document], dict]`
+
+### N.2 — Test de `ContractacioPublicaClient._parse_detail_fields()` ✅
+
+- [x] `TEST` `ContractacioPublicaClient._parse_detail_fields()` — donat el JSON de detall
+  retorna un `dict` amb els 7 camps: `cpv_principal`, `data_limit`, `durada_dies`,
+  `tipus_contracte_id`, `procediment_id`, `nuts_code`, `classifications`.
+  Cas sense lots: camps de lot son `None` / tuple buida.
+
+### N.3 — Implementar `_parse_detail_fields()` i `fetch_detail()` ✅
+
+- [x] `IMPL` `ContractacioPublicaClient._parse_detail_fields(publicacio: dict) -> dict` —
+  extreu els 7 camps del JSON de detall
+- [x] `IMPL` `ContractacioPublicaClient.fetch_detail()` — crida HTTP única, retorna
+  `(self._extract_documents(...), self._parse_detail_fields(...))`
+
+### N.4 — Actualitzar `RunPipelineUseCase` ✅
+
+- [x] `IMPL` `RunPipelineUseCase.execute()` — substituir `fetch_documents` per `fetch_detail`;
+  desempaquetar `documents, fields = self._api.fetch_detail(...)`;
+  aplicar camps al tender via `setattr` abans de cridar `self._repository.save(tender)`
+
+### N.5 — UI: mostrar `codi_expedient` a `/licitacions` ✅
+
+- [x] `IMPL` `tenders.html` — afegir `codi_expedient` com a text secundari sota el títol
